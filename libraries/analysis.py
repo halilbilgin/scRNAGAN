@@ -18,8 +18,16 @@ class Analysis(object):
         data[0:train_data.shape[0], :] = scaler.transform(train_data)
         data[train_data.shape[0]:, :] = scaler.transform(generated_data)
 
-
         return data, train_data.shape
+
+    def get_gene(self, gene, cellType, epoch):
+        generated_data, generated_labels = self.load_samples(epoch * self.iterations_per_epoch)
+
+        train_data, labels = self.input_data.get_raw_data()
+
+        return generated_data[generated_labels[:, cellType]==1, gene], \
+               train_data[labels[:, cellType]==1, gene]
+
 
     def tSNE(self, generated_data, filename, **kwargs):
         data, train_shape = self.merge_train_and_generated_data(generated_data)
@@ -70,7 +78,7 @@ class Analysis(object):
 
             filename = self.run_path + '/' + str(iters - t).zfill(5)
 
-        print(filename)
+
 
         if type(data) == bool:
             data = np.load(filename + '.npy')
@@ -111,7 +119,7 @@ class Analysis(object):
 
         self.input_data = InputData(config['data_path'])
         
-        self.input_data.preprocessing(config['log_transformation'], Scaling[config['scaling']])
+        self.input_data.preprocessing(config['log_transformation'], None if config['scaling'] not in Scaling.__members__ else Scaling[config['scaling']])
 
         train_data, _ = self.input_data.get_raw_data()
         train_shape = train_data.shape

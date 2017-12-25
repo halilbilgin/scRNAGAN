@@ -47,6 +47,8 @@ def get_activation(s):
         return tf.nn.tanh
     elif(s == 'sigmoid'):
         return tf.nn.sigmoid
+    elif(s == 'none'):
+        return None
     else:
         raise ValueError("No such activation is implemented")
 

@@ -10,8 +10,10 @@ import tensorflow as tf
 # python3 train.py -epath /home/halilbilgin/remoteSeqGAN/out/experiment2 -i 3000 -s_freq 10 -p_freq 10 -l_freq 100 -l_size 250 -d_steps 1
 
 def train(args):
+    print(args.experiment_path)
+
     if not os.path.isdir(args.experiment_path):
-        print("Directory should exist.")
+        print("Experiment directory should exist.")
         sys.exit(0)
 
     if not os.path.isfile(args.experiment_path + '/config.json'):
@@ -29,8 +31,11 @@ def train(args):
     with open(args.experiment_path + '/config.json') as json_file:
         config = json.load(json_file)
 
+    config['experiment_path'] = args.experiment_path
+
     input_data = InputData(config['data_path'])
-    input_data.preprocessing(config['log_transformation'], Scaling[config['scaling']])
+
+    input_data.preprocessing(config['log_transformation'], None if config['scaling'] not in Scaling.__members__ else Scaling[config['scaling']])
 
     train_data, train_labels = input_data.get_data()
 
@@ -42,7 +47,6 @@ def train(args):
     else:
         config['normalizer_fn'] = tf.contrib.layers.batch_norm
         config['normalizer_params'] = {'center': True, 'scale': True}
-
     acgan = ACGAN(train_data.shape[1], train_labels.shape[1], **config)
 
     acgan.build_model()
@@ -55,6 +59,7 @@ def train(args):
     del train_config['experiment_path'], train_config['run_name'], train_config['epochs']
 
     acgan.train_and_log(input_data.iterator, dir_name, **train_config)
+    acgan.close_session()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

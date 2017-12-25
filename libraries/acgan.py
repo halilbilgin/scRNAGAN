@@ -4,6 +4,7 @@ import datetime
 import os
 from tensorflow.contrib.layers import fully_connected
 from libraries.utils import sample_z, cross_entropy, objdict
+import sys
 
 class ACGAN():
     
@@ -18,7 +19,7 @@ class ACGAN():
                         config.activation_function, config.normalizer_fn,
                         normalizer_params=config.normalizer_params,
                         weights_regularizer = config.weights_regularizer,
-                        reuse=tf.AUTO_REUSE, scope='discriminator_'+str(i)), config.d_dropout, training=True)
+                        reuse=tf.AUTO_REUSE, scope='discriminator_'+str(i)), config.d_dropout, training=self.phase)
         
         out_gan = fully_connected(connected, num_outputs=1, activation_fn=tf.nn.sigmoid
                                     , reuse=tf.AUTO_REUSE, scope='discriminator_out_gan')
@@ -40,7 +41,7 @@ class ACGAN():
                             config.activation_function, config.normalizer_fn,
                             normalizer_params=config.normalizer_params,
                             weights_regularizer = config.weights_regularizer,
-                            reuse=tf.AUTO_REUSE, scope='generator_'+str(i)), config.g_dropout, training=True)  
+                            reuse=tf.AUTO_REUSE, scope='generator_'+str(i)), config.g_dropout, training=self.phase)
         
         return fully_connected(connected, config.X_dim, 
                                activation_fn=config.generator_output_activation, 
@@ -89,11 +90,11 @@ class ACGAN():
         for grad, var in self.D_grads + self.G_grads:
             tf.summary.histogram(var.name.replace(':','_') + '/gradient', grad)
         
-        discriminator_fake_accuracy = tf.reduce_mean(
+        self.discriminator_fake_accuracy = tf.reduce_mean(
                 tf.cast(tf.concat([tf.greater_equal(self.D_real,0.5), tf.less(self.D_fake,0.5)], 0), 
                         tf.float32))
         
-        discriminator_class_accuracy = tf.reduce_mean(
+        self.discriminator_class_accuracy = tf.reduce_mean(
             tf.cast(
                 tf.equal(
                     tf.argmax(
@@ -101,11 +102,10 @@ class ACGAN():
                     tf.argmax(
                         tf.concat([self.y, self.y], 0), axis = 1)),
                 tf.float32))
-        
 
-        tf.summary.scalar("Discriminatorfake_accuracy", discriminator_fake_accuracy)
-        tf.summary.scalar("Discriminatorclass_accuracy", discriminator_class_accuracy)
-        
+        tf.summary.scalar("Discriminatorfake_accuracy", self.discriminator_fake_accuracy)
+        tf.summary.scalar("Discriminatorclass_accuracy", self.discriminator_class_accuracy)
+
         tf.summary.scalar("D_loss", self.D_loss)
         tf.summary.scalar("G_loss", self.G_loss)
         tf.summary.scalar("DC_loss", self.DC_loss)
@@ -136,7 +136,10 @@ class ACGAN():
         
         self.load_summary()
     
-    
+    def close_session(self):
+        tf.reset_default_graph()
+        self.sess.close()
+
     def get_config(self):
         return self.config
     
@@ -145,6 +148,8 @@ class ACGAN():
         config = self.config
         
         sess = tf.Session()
+        self.sess = sess
+
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
         if not os.path.exists(logs_path):
@@ -159,8 +164,9 @@ class ACGAN():
                 X_mb, y_mb = next_batch(config.mb_size, (d_step+1)*it)
                 z_mb = sample_z(config.mb_size, config.z_dim)
                 
-                _, DC_loss_curr = sess.run(
-                    [self.D_solver, self.DC_loss],
+                _, DC_loss_curr, c_acc, f_acc = sess.run(
+                    [self.D_solver, self.DC_loss, self.discriminator_class_accuracy, self.discriminator_fake_accuracy],
+
                     feed_dict={self.X: X_mb, self.y: y_mb, self.z: z_mb, self.phase: 1}
                 )
             
@@ -173,8 +179,11 @@ class ACGAN():
                 summary_writer.add_summary(summary, it)
 
             if it % print_freq == 0:
-                print('Iter: {}; DC_loss: {:.4}; GC_loss: {:.4};'
-                      .format(it, DC_loss_curr, GC_loss_curr))
+                print('Iter: {}; DC_loss: {:.4}; GC_loss: {:.4}; Discfakeacc: {:.2}; Discclassacc: {:.2};'
+                      .format(it, DC_loss_curr, GC_loss_curr, f_acc, c_acc ))
+
+            if(DC_loss_curr > 1000):
+                return False
 
             if it % log_sample_freq == 0:
                 idx = np.random.randint(0, config.y_dim, log_sample_size)
@@ -204,8 +213,8 @@ class ACGAN():
             'X_dim': X_dim,
             'y_dim': y_dim,
             'z_dim': z_dim,
-            'generator_output_activation': tf.nn.sigmoid
+            'generator_output_activation': generator_output_activation
         }
-        
+
         self.config = {**default_config, **kwargs}
         self.config = objdict(self.config)

@@ -3,6 +3,7 @@ from libraries.acgan import ACGAN
 import json
 import argparse
 import os
+import copy
 from train import train
 
 parser = argparse.ArgumentParser()
@@ -36,14 +37,17 @@ rerun = True if args.rerun == 1 else False
 subdirectories = next(os.walk(experiments_path))[1]
 
 del args.rerun, args.experiments_path
+experiment_path = os.path.join(experiments_path, subdirectories[0])
 
 for subdir in subdirectories:
     experiment_path = os.path.join(experiments_path, subdir)
     config_file = os.path.join(experiment_path, "config.json")
     if not os.path.isfile(config_file):
         continue
-    if os.path.isdir(os.path.join(experiment_path, "run1") and not rerun):
+    if os.path.isdir(os.path.join(experiment_path, args.run_name)) and not rerun:
         continue
-    args.experiment_path = experiment_path
 
-    train(args)
+    clone_args = copy.deepcopy(args)
+    clone_args.experiment_path = experiment_path
+
+    train(clone_args)

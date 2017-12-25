@@ -36,19 +36,16 @@ class InputData():
         
         return self.train[idx, :], self.train_labels[idx, :]
     
-    def __scale(self, scaling=Scaling.minmax, use_raw=True):
+    def __scale(self, scaling=Scaling.minmax):
         
         if scaling==Scaling.minmax:
             scaler = preprocessing.MinMaxScaler()
         else:
             scaler = preprocessing.StandardScaler()
         
-        if use_raw:
-            scaler.fit(self.train_raw)
-            self.train = scaler.transform(self.train_raw)
-        else:
-            scaler.fit(self.train)
-            self.train = scaler.transform(self.train)
+
+        scaler.fit(self.train)
+        self.train = scaler.transform(self.train)
             
         self.scaler = scaler
         
@@ -65,16 +62,14 @@ class InputData():
             self.test_labels = pandas2ri.ri2py(self.labels)
         
     
-    def __log_transform(self, use_raw=True):
-        if use_raw:
-            self.train = np.log2(self.train_raw + 1e-8)
-        else:
-            self.train = np.log2(self.train)
+    def __log_transform(self):
+        self.train = np.log2(self.train + 1e-8)
     
-    def preprocessing(self, log_transformation=True, scaling=Scaling.minmax, use_raw=True):
+    def preprocessing(self, log_transformation=True, scaling=Scaling.minmax):
         
         # Don't allow to do preprocessing twice, just to avoid possible hazards.
-        
+        self.train = self.train_raw
+
         if self.done_preprocessing:
             raise RuntimeError("Already done preprocessing")
         else:
@@ -84,11 +79,10 @@ class InputData():
         self.scaling = scaling
         
         if log_transformation:
-            self.__log_transform(use_raw)
-            use_raw = False
+            self.__log_transform()
 
         if scaling in Scaling:
-            self.__scale(scaling, use_raw)
+            self.__scale(scaling)
     
     @staticmethod
     def inverse_preprocessing(data, log_transformation, scaler=None):
@@ -96,9 +90,8 @@ class InputData():
         if(scaler != None):
             data = scaler.inverse_transform(data)
 
-        if(log_transformation):    
+        if(log_transformation):
             data = np.exp2(data)
-        
         return data
     
     def get_raw_data(self, train=True):
