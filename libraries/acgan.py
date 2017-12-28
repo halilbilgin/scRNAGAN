@@ -198,7 +198,9 @@ class ACGAN():
                 np.save(logs_path+'/'+'{}'.format(str(it).zfill(5))+'_labels', c)
 
                 
-    def __init__(self, X_dim, y_dim, z_dim, **kwargs):
+    def __init__(self, X_dim, y_dim, input_data, **kwargs):
+        self.input_data = input_data
+
         default_config = {
             'd_hidden_layers': [180, 45],
             'g_hidden_layers': [50, 200],
@@ -214,7 +216,7 @@ class ACGAN():
             'normalizer_params':{},
             'X_dim': X_dim,
             'y_dim': y_dim,
-            'z_dim': z_dim,
+            'z_dim': kwargs['z_dim'],
             'generator_output_activation': kwargs['generator_output_activation']
         }
 
