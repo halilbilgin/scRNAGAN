@@ -47,7 +47,7 @@ def train(args):
     else:
         config['normalizer_fn'] = tf.contrib.layers.batch_norm
         config['normalizer_params'] = {'center': True, 'scale': True}
-    acgan = ACGAN(train_data.shape[1], train_labels.shape[1], **config)
+    acgan = ACGAN(train_data.shape[1], train_labels.shape[1], input_data, **config)
 
     acgan.build_model()
 

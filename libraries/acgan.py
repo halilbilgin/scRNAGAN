@@ -192,11 +192,13 @@ class ACGAN():
 
                 samples = sess.run(self.G_sample, feed_dict={self.z: sample_z(log_sample_size, config.z_dim), 
                                                      self.y: c, self.phase: 0})
+                samples = self.input_data.inverse_preprocessing(samples, config.log_transformation, self.input_data.scaler)
+
                 np.save(logs_path+'/'+'{}'.format(str(it).zfill(5)), samples)
                 np.save(logs_path+'/'+'{}'.format(str(it).zfill(5))+'_labels', c)
 
                 
-    def __init__(self, X_dim, y_dim, z_dim, generator_output_activation, **kwargs):
+    def __init__(self, X_dim, y_dim, z_dim, **kwargs):
         default_config = {
             'd_hidden_layers': [180, 45],
             'g_hidden_layers': [50, 200],
@@ -213,7 +215,7 @@ class ACGAN():
             'X_dim': X_dim,
             'y_dim': y_dim,
             'z_dim': z_dim,
-            'generator_output_activation': generator_output_activation
+            'generator_output_activation': kwargs['generator_output_activation']
         }
 
         self.config = {**default_config, **kwargs}
