@@ -13,7 +13,7 @@ def create_experiment(config):
     else:
         config['generator_output_activation'] = 'none'
 
-    with open(args.experiment_path + '/config.json', 'w') as outfile:
+    with open(config['experiment_path'] + '/config.json', 'w') as outfile:
         json.dump(config, outfile)
 
 if __name__ == '__main__':

@@ -40,7 +40,7 @@ def train(args):
     train_data, train_labels = input_data.get_data()
 
     config['activation_function'] = get_activation(config['activation_function'])
-    config['generator_output_activation'] = get_activation(config['generator_output_activation'])
+    config['generator_output_activation'] = get_activation('sigmoid' if config['scaling'] else 'none')
 
     if config['normalizer_fn'] != 1:
         config['normalizer_fn'] = None

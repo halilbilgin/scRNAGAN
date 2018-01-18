@@ -7,6 +7,14 @@ import matplotlib.pyplot as plt
 import os
 import json
 from libraries.input_data import InputData, Scaling
+import rpy2.robjects as ro
+import rpy2.robjects.numpy2ri
+rpy2.robjects.numpy2ri.activate()
+import rpy2.robjects as robjects
+from rpy2.robjects import pandas2ri
+pandas2ri.activate()
+readRDS = robjects.r['readRDS']
+
 
 class Analysis(object):
 
@@ -28,6 +36,27 @@ class Analysis(object):
         return generated_data[generated_labels[:, cellType]==1, gene], \
                train_data[labels[:, cellType]==1, gene]
 
+    def euclidean_distance(self, epoch, normalize=True):
+        generated_data, generated_labels = self.load_samples(epoch * self.iterations_per_epoch)
+
+        train_data, labels = self.input_data.get_raw_data()
+
+        if normalize== True:
+            train_data = self.scaler.transform(train_data)
+            generated_data = self.scaler.transform(generated_data)
+
+        if epoch == 0:
+            np.random.seed(2)
+            ind = np.random.choice(train_data.shape[0], (generated_data.shape[0],))
+            generated_data = train_data[ind, :]
+            train_data = np.delete(train_data, ind, axis=0)
+
+        np.random.seed(1)
+        ind = np.random.choice(train_data.shape[0], (generated_data.shape[0],))
+
+        distances = np.linalg.norm(train_data[ind, :] - generated_data, axis=1)
+        return np.mean(distances)
+
 
     def tSNE(self, generated_data, filename, **kwargs):
         data, train_shape = self.merge_train_and_generated_data(generated_data)
@@ -46,23 +75,23 @@ class Analysis(object):
         data, train_shape = self.merge_train_and_generated_data(generated_data)
 
         pca = decomposition.PCA(n_components=2)
+        raw_data, _ = self.input_data.get_raw_data()
 
-        pca.fit(data[0:data.shape[0], :])
+        pca.fit(data[0:raw_data.shape[0], :])
 
         X = pca.transform(data)
-
-        matplotlib.use('Agg')
 
         plt.figure(**self.figure_settings)
         plt.autoscale(True)
 
-        # plt.ylim(ymax=10, ymin=-10)
-        # plt.xlim(xmax=10, xmin=-10)
+        #plt.ylim(ymax=5, ymin=-5)
+        #plt.xlim(xmax=5, xmin=-5)
 
         n = train_shape[0]
         real_fake = ['red' if i >= n else 'blue' for i in range(data.shape[0])]
         plt.scatter(X[:, 0], X[:, 1], color=real_fake)
-        plt.savefig(self.output_path+"/"+filename)
+        plt.show()
+        #plt.savefig(self.output_path+"/"+filename)
 
     def load_samples(self, iters, labels=True, verboseIteration=False):
         data = False
@@ -71,7 +100,7 @@ class Analysis(object):
 
         filename = self.run_path + '/' + str(iters - t).zfill(5)
 
-        while not os.path.isfile(filename + '.npy'):
+        while not os.path.isfile(filename + '.rds'):
             t += 1
             if t > iters:
                 raise ValueError("No log could be found.")
@@ -81,16 +110,16 @@ class Analysis(object):
 
 
         if type(data) == bool:
-            data = np.load(filename + '.npy')
+            data = pandas2ri.ri2py(readRDS(filename + '.rds'))
         else:
-            data = np.concatenate((data, np.load(filename + '.npy')), axis=0)
+            data = np.concatenate((data, pandas2ri.ri2py(readRDS(filename + '.rds'))), axis=0)
         if labels and type(data_labels) != bool:
-            data_labels = np.concatenate((data_labels, np.load(filename + '_labels.npy')), axis=0)
+            data_labels = np.concatenate((data_labels, pandas2ri.ri2py(readRDS((filename + '_labels.npy')))), axis=0)
         elif labels and type(data_labels) == bool:
-            data_labels = np.load(filename + '_labels.npy')
+            data_labels = pandas2ri.ri2py(readRDS((filename + '_labels.rds')))
 
-        data = self.input_data.inverse_preprocessing(data, self.config['log_transformation'],
-                                                  self.input_data.scaler)
+        #data = self.input_data.inverse_preprocessing(data, self.config['log_transformation'],
+        #                                          self.input_data.scaler)
 
         if labels:
             return data, data_labels
@@ -103,7 +132,6 @@ class Analysis(object):
             generated_data = self.load_samples(self.epochs[i] * self.iterations_per_epoch, False)
 
             self.pca(generated_data, "pca_epoch"+str(self.epochs[i])+".jpg")
-
 
     def __init__(self, experiment_path, run_name, epochs=[5,10,15]):
 
@@ -129,6 +157,9 @@ class Analysis(object):
         self.run_path = experiment_path+"/"+run_name+"/"
 
         self.output_path = self.run_path+"results/"
+
+        self.scaler = preprocessing.StandardScaler()
+        self.scaler.fit(train_data)
 
         if not os.path.isdir(self.output_path):
             os.mkdir(self.output_path)

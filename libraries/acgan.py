@@ -5,6 +5,9 @@ import os
 from tensorflow.contrib.layers import fully_connected
 from libraries.utils import sample_z, cross_entropy, objdict
 import sys
+import rpy2.robjects as ro
+import rpy2.robjects.numpy2ri
+rpy2.robjects.numpy2ri.activate()
 
 class ACGAN():
     
@@ -160,16 +163,16 @@ class ACGAN():
                                                     graph=tf.get_default_graph())
 
         for it in range(iterations):
-            for d_step in range(d_steps):        
+            for d_step in range(d_steps):
                 X_mb, y_mb = next_batch(config.mb_size, (d_step+1)*it)
                 z_mb = sample_z(config.mb_size, config.z_dim)
-                
+
                 _, DC_loss_curr, c_acc, f_acc = sess.run(
                     [self.D_solver, self.DC_loss, self.discriminator_class_accuracy, self.discriminator_fake_accuracy],
 
                     feed_dict={self.X: X_mb, self.y: y_mb, self.z: z_mb, self.phase: 1}
                 )
-            
+
             _, GC_loss_curr, summary = sess.run(
                 [self.G_solver, self.GC_loss, merged_summary_op],
                 feed_dict={self.X: X_mb, self.y: y_mb, self.z: z_mb, self.phase: 1}
@@ -190,14 +193,18 @@ class ACGAN():
                 c = np.zeros([log_sample_size, config.y_dim])
                 c[range(log_sample_size), idx] = 1
 
-                samples = sess.run(self.G_sample, feed_dict={self.z: sample_z(log_sample_size, config.z_dim), 
+                samples = sess.run(self.G_sample, feed_dict={self.z: sample_z(log_sample_size, config.z_dim),
                                                      self.y: c, self.phase: 0})
                 samples = self.input_data.inverse_preprocessing(samples, config.log_transformation, self.input_data.scaler)
 
-                np.save(logs_path+'/'+'{}'.format(str(it).zfill(5)), samples)
-                np.save(logs_path+'/'+'{}'.format(str(it).zfill(5))+'_labels', c)
+                samples = ro.r.matrix(samples, nrow=samples.shape[0], ncol=samples.shape[1])
 
-                
+                ro.r.assign("samples", samples)
+                ro.r.assign("c", c)
+                filename = logs_path+'/'+'{}'.format(str(it).zfill(5))
+                ro.r("saveRDS(samples, file='"+filename+".rds')")
+                ro.r("saveRDS(c, file='" + filename+ "_labels.rds')")
+
     def __init__(self, X_dim, y_dim, input_data, **kwargs):
         self.input_data = input_data
 
