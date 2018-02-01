@@ -38,9 +38,9 @@ class objdict(dict):
         else:
             raise AttributeError("No such attribute: " + name)
 
-def get_activation(s):
+def get_activation(s, alpha=0.1):
     if(s == 'leaky_relu'):
-        return leaky_relu
+        return lambda x : tf.maximum(x, alpha * x)
     elif(s == 'relu'):
         return tf.nn.relu
     elif(s == 'tanh'):

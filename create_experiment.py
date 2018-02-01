@@ -6,10 +6,11 @@ from libraries.utils import check_activation_function, check_scaling
 from libraries.input_data import Scaling
 
 def create_experiment(config):
-    if Scaling[config['scaling']] == Scaling.minmax:
-        config['generator_output_activation'] = 'sigmoid'
-    elif Scaling[config['scaling']] == Scaling.standard:
-        config['generator_output_activation'] = 'tanh'
+    if config['scaling'] in Scaling.__members__:
+        if Scaling[config['scaling']] == Scaling.minmax:
+            config['generator_output_activation'] = 'sigmoid'
+        elif Scaling[config['scaling']] == Scaling.standard:
+            config['generator_output_activation'] = 'tanh'
     else:
         config['generator_output_activation'] = 'none'
 

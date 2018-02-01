@@ -53,13 +53,13 @@ class InputData():
         self.train_raw = readRDS(dataset_path+'/train.rds')
         self.train_raw = pandas2ri.ri2py(self.train_raw)
         self.train_labels = readRDS(dataset_path+'/train_labels.rds')
-        self.train_labels = pandas2ri.ri2py(self.train_labels)
+        self.train_labels = pandas2ri.ri2py(self.train_labels).as_matrix()
         
         if test:
             self.test_raw = readRDS(dataset_path+'/test.rds')
             self.test_raw = pandas2ri.ri2py(self.test_raw)
             self.test_labels = readRDS(dataset_path+'/test_labels.rds') 
-            self.test_labels = pandas2ri.ri2py(self.labels)
+            self.test_labels = pandas2ri.ri2py(self.test_labels).as_matrix()
         
     
     def __log_transform(self):

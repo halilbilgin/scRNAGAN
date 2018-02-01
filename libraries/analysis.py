@@ -19,7 +19,7 @@ readRDS = robjects.r['readRDS']
 class Analysis(object):
 
     def merge_train_and_generated_data(self, generated_data):
-        train_data , _ = self.input_data.get_raw_data()
+        train_data , _ = self.input_data.get_raw_data(False)
 
         data = np.concatenate((train_data, generated_data), axis=0)
         scaler = preprocessing.StandardScaler().fit(train_data)
@@ -28,13 +28,37 @@ class Analysis(object):
 
         return data, train_data.shape
 
-    def get_gene(self, gene, cellType, epoch):
-        generated_data, generated_labels = self.load_samples(epoch * self.iterations_per_epoch)
+    def get_gene(self, gene, cellType, iteration):
+        generated_data, generated_labels = self.load_samples(iteration)
 
         train_data, labels = self.input_data.get_raw_data()
 
         return generated_data[generated_labels[:, cellType]==1, gene], \
                train_data[labels[:, cellType]==1, gene]
+
+    def get_marker_vector(self, data, labels):
+        ratio_vector = np.zeros(labels.shape[1])
+
+        for i in range(labels.shape[1]):
+            ratio_vector[i] = np.mean(data[labels[:, i] == 0, self.marker[i]]) / \
+                              (np.mean(data[labels[:, i] == 1, self.marker[i]]))
+            if np.isnan(ratio_vector[i]):
+                ratio_vector[i] = 0
+        return ratio_vector
+
+    def print_ratios(self, gene, iterations):
+        for i in iterations:
+            generated_data, generated_labels = self.load_samples(i)
+
+            test_data, test_labels = self.input_data.get_raw_data(False)
+
+            test_ratio = self.get_marker_vector(test_data, test_labels)
+
+            generated_ratio = self.get_marker_vector(generated_data, generated_labels)
+
+            print(np.round(np.linalg.norm(generated_ratio-test_ratio), 3), end=', ')
+
+
 
     def euclidean_distance(self, epoch, normalize=True):
         generated_data, generated_labels = self.load_samples(epoch * self.iterations_per_epoch)
@@ -75,14 +99,14 @@ class Analysis(object):
         data, train_shape = self.merge_train_and_generated_data(generated_data)
 
         pca = decomposition.PCA(n_components=2)
-        raw_data, _ = self.input_data.get_raw_data()
+        raw_data, _ = self.input_data.get_raw_data(False)
 
         pca.fit(data[0:raw_data.shape[0], :])
 
         X = pca.transform(data)
 
-        plt.figure(**self.figure_settings)
-        plt.autoscale(True)
+        #plt.figure(**self.figure_settings)
+        #plt.autoscale(True)
 
         #plt.ylim(ymax=5, ymin=-5)
         #plt.xlim(xmax=5, xmin=-5)
@@ -90,7 +114,7 @@ class Analysis(object):
         n = train_shape[0]
         real_fake = ['red' if i >= n else 'blue' for i in range(data.shape[0])]
         plt.scatter(X[:, 0], X[:, 1], color=real_fake)
-        plt.show()
+
         #plt.savefig(self.output_path+"/"+filename)
 
     def load_samples(self, iters, labels=True, verboseIteration=False):
@@ -106,7 +130,6 @@ class Analysis(object):
                 raise ValueError("No log could be found.")
 
             filename = self.run_path + '/' + str(iters - t).zfill(5)
-
 
 
         if type(data) == bool:
@@ -126,26 +149,29 @@ class Analysis(object):
         else:
             return data
 
-    def save_pca_plots(self):
+    def save_pca_plots(self, iterations):
+        plt.figure(**self.figure_settings)
+        for i in range(len(iterations)):
+            generated_data = self.load_samples(iterations[i], False)
+            plt.subplot(1,len(iterations), i+1)
+            self.pca(generated_data, "pca_epoch"+str(iterations[i])+".jpg")
 
-        for i in range(len(self.epochs)):
-            generated_data = self.load_samples(self.epochs[i] * self.iterations_per_epoch, False)
+        plt.show()
 
-            self.pca(generated_data, "pca_epoch"+str(self.epochs[i])+".jpg")
-
-    def __init__(self, experiment_path, run_name, epochs=[5,10,15]):
+    def __init__(self, experiment_path, run_name, use_test_set=False):
 
         self.figure_settings = {
-            'figsize': (6, 6)
+            'figsize': (30, 6)
         }
-        self.epochs = epochs
+        self.marker = [4, 1, 0, 2, 5, 3, 6]
+
         with open(experiment_path + '/config.json') as json_file:
             config = json.load(json_file)
 
         self.config = config
         self.run_name = run_name
 
-        self.input_data = InputData(config['data_path'])
+        self.input_data = InputData(config['data_path'], use_test_set)
         
         self.input_data.preprocessing(config['log_transformation'], None if config['scaling'] not in Scaling.__members__ else Scaling[config['scaling']])
 

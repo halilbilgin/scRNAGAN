@@ -35,7 +35,7 @@ if not os.path.isdir(args.experiments_path):
 experiments_path = args.experiments_path
 rerun = True if args.rerun == 1 else False
 subdirectories = next(os.walk(experiments_path))[1]
-
+subdirectories.sort()
 del args.rerun, args.experiments_path
 experiment_path = os.path.join(experiments_path, subdirectories[0])
 

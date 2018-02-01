@@ -38,15 +38,20 @@ def train(args):
     input_data.preprocessing(config['log_transformation'], None if config['scaling'] not in Scaling.__members__ else Scaling[config['scaling']])
 
     train_data, train_labels = input_data.get_data()
+    if 'leaky_param' not in config:
+        config['leaky_param'] = 0.1
 
-    config['activation_function'] = get_activation(config['activation_function'])
+    config['activation_function'] = get_activation(config['activation_function'], config['leaky_param'])
     config['generator_output_activation'] = get_activation('sigmoid' if config['scaling'] else 'none')
+
+
 
     if config['normalizer_fn'] != 1:
         config['normalizer_fn'] = None
     else:
         config['normalizer_fn'] = tf.contrib.layers.batch_norm
         config['normalizer_params'] = {'center': True, 'scale': True}
+
     acgan = ACGAN(train_data.shape[1], train_labels.shape[1], input_data, **config)
 
     acgan.build_model()
