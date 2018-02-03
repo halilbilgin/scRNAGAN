@@ -6,6 +6,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import os
 import json
+from mpl_toolkits.mplot3d import Axes3D
+
 from libraries.input_data import InputData, Scaling
 import rpy2.robjects as ro
 import rpy2.robjects.numpy2ri
@@ -18,15 +20,19 @@ readRDS = robjects.r['readRDS']
 
 class Analysis(object):
 
-    def merge_train_and_generated_data(self, generated_data):
-        train_data , _ = self.input_data.get_raw_data(False)
+    def merge_train_and_generated_data(self, iteration):
+        real_data , real_labels = self.input_data.get_raw_data()
+        generated_data, generated_labels = self.load_samples(iteration)
 
-        data = np.concatenate((train_data, generated_data), axis=0)
-        scaler = preprocessing.StandardScaler().fit(train_data)
-        data[0:train_data.shape[0], :] = scaler.transform(train_data)
-        data[train_data.shape[0]:, :] = scaler.transform(generated_data)
+        data = np.concatenate((real_data, generated_data), axis=0)
+        labels = np.argmax(np.concatenate((real_labels.astype(int), generated_labels.astype(int))), 1)
+        real_fake = np.array([False if i >= real_data.shape[0] else True for i in range(data.shape[0])])
 
-        return data, train_data.shape
+        #scaler = preprocessing.StandardScaler().fit(data)
+        #data = scaler.transform(data)
+        #data[0:train_data.shape[0], :] = scaler.transform(train_data)
+        #data[train_data.shape[0]:, :] = scaler.transform(generated_data)
+        return data, labels, real_fake
 
     def get_gene(self, gene, cellType, iteration):
         generated_data, generated_labels = self.load_samples(iteration)
@@ -37,11 +43,12 @@ class Analysis(object):
                train_data[labels[:, cellType]==1, gene]
 
     def get_marker_vector(self, data, labels):
+
         ratio_vector = np.zeros(labels.shape[1])
 
         for i in range(labels.shape[1]):
-            ratio_vector[i] = np.mean(data[labels[:, i] == 0, self.marker[i]]) / \
-                              (np.mean(data[labels[:, i] == 1, self.marker[i]]))
+            ratio_vector[i] = np.median(data[labels[:, i] == 0, self.marker[i%7]]) / \
+                              (np.median(data[labels[:, i] == 1, self.marker[i%7]]))
             if np.isnan(ratio_vector[i]):
                 ratio_vector[i] = 0
         return ratio_vector
@@ -50,9 +57,9 @@ class Analysis(object):
         for i in iterations:
             generated_data, generated_labels = self.load_samples(i)
 
-            test_data, test_labels = self.input_data.get_raw_data(False)
+            train_data, train_labels = self.input_data.get_raw_data()
 
-            test_ratio = self.get_marker_vector(test_data, test_labels)
+            test_ratio = self.get_marker_vector(train_data, train_labels)
 
             generated_ratio = self.get_marker_vector(generated_data, generated_labels)
 
@@ -81,39 +88,14 @@ class Analysis(object):
         distances = np.linalg.norm(train_data[ind, :] - generated_data, axis=1)
         return np.mean(distances)
 
-
-    def tSNE(self, generated_data, filename, **kwargs):
-        data, train_shape = self.merge_train_and_generated_data(generated_data)
-
-        tsne = TSNE(n_components=2, **kwargs)
-        tsne_results = tsne.fit_transform(data)
-        real_fake = ['red' if i >= train_shape[0] else 'blue' for i in range(data.shape[0])]
-
-        plt.figure(**self.figure_settings)
-        plt.autoscale(True)
-
-        plt.scatter(tsne_results[:, 0], tsne_results[:, 1], color=real_fake)
-        plt.savefig(self.output_path + "/" + filename)
-
-    def pca(self, generated_data, filename):
-        data, train_shape = self.merge_train_and_generated_data(generated_data)
+    def pca(self, data, labels, is_real):
 
         pca = decomposition.PCA(n_components=2)
-        raw_data, _ = self.input_data.get_raw_data(False)
-
-        pca.fit(data[0:raw_data.shape[0], :])
+        pca.fit(data[is_real, :])
 
         X = pca.transform(data)
 
-        #plt.figure(**self.figure_settings)
-        #plt.autoscale(True)
-
-        #plt.ylim(ymax=5, ymin=-5)
-        #plt.xlim(xmax=5, xmin=-5)
-
-        n = train_shape[0]
-        real_fake = ['red' if i >= n else 'blue' for i in range(data.shape[0])]
-        plt.scatter(X[:, 0], X[:, 1], color=real_fake)
+        return X
 
         #plt.savefig(self.output_path+"/"+filename)
 
@@ -149,12 +131,43 @@ class Analysis(object):
         else:
             return data
 
-    def save_pca_plots(self, iterations):
+    def normal(self, iteration):
+        data, labels, is_real = self.merge_train_and_generated_data(iteration)
+        indices = labels < 7
+
+        X = self.pca(data[indices], labels[indices], is_real[indices])
+
+        plt.scatter(X[:, 0], X[:, 1],
+                    color=['green' if i else 'red' for i in is_real[indices]])
+
+    def diabetic(self, iteration):
+        data, labels, is_real = self.merge_train_and_generated_data(iteration)
+        indices = labels >= 7
+
+        X = self.pca(data[indices], labels[indices], is_real[indices])
+
+        plt.scatter(X[:, 0], X[:, 1],
+                    color=['green' if i else 'red' for i in is_real[indices]])
+
+    def cell_types(self, iteration):
+        data, labels, is_real = self.merge_train_and_generated_data(iteration)
+        markers = ['o', 's', '+', '.', '<', '>', "*"]
+        X = self.pca(data, labels, is_real)
+        for i in np.unique(labels):
+            indices = np.where(labels == i)[0]
+            plt.scatter(X[indices, 0], X[indices, 1],
+                        color=['red' if i else 'blue' for i in is_real[indices]],
+                        marker=markers[i % 7])
+
+    def save_pca_plots(self, iterations, plotter):
         plt.figure(**self.figure_settings)
         for i in range(len(iterations)):
-            generated_data = self.load_samples(iterations[i], False)
             plt.subplot(1,len(iterations), i+1)
-            self.pca(generated_data, "pca_epoch"+str(iterations[i])+".jpg")
+            # fig = plt.figure()
+            # ax = fig.add_subplot(111, projection='3d')
+            plotter(iterations[i])
+            # plt.figure(**self.figure_settings)
+
 
         plt.show()
 
