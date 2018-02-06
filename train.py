@@ -6,7 +6,7 @@ import os
 import sys
 from libraries.utils import get_activation
 import tensorflow as tf
-
+from libraries.data_loader import RDSLoader
 # python3 train.py -epath /home/halilbilgin/remoteSeqGAN/out/experiment2 -i 3000 -s_freq 10 -p_freq 10 -l_freq 100 -l_size 250 -d_steps 1
 
 def train(args):
@@ -33,7 +33,7 @@ def train(args):
 
     config['experiment_path'] = args.experiment_path
 
-    input_data = InputData(config['data_path'])
+    input_data = InputData(config['data_path'], RDSLoader())
 
     input_data.preprocessing(config['log_transformation'], None if config['scaling'] not in Scaling.__members__ else Scaling[config['scaling']])
 
@@ -42,11 +42,12 @@ def train(args):
         config['leaky_param'] = 0.1
 
     config['activation_function'] = get_activation(config['activation_function'], config['leaky_param'])
-    config['generator_output_activation'] = get_activation('sigmoid' if config['scaling'] else 'none')
+    config['generator_output_activation'] = get_activation('tanh' if config['scaling'] == 'minmax' else 'none')
 
+    if 'wgan' not in config:
+        config['wgan'] = False
 
-
-    if config['normalizer_fn'] != 1:
+    if 'normalizer_fn' not in config :
         config['normalizer_fn'] = None
     else:
         config['normalizer_fn'] = tf.contrib.layers.batch_norm

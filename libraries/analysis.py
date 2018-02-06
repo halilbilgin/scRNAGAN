@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import os
 import json
 from mpl_toolkits.mplot3d import Axes3D
-
+from libraries.data_loader import RDSLoader
 from libraries.input_data import InputData, Scaling
 import rpy2.robjects as ro
 import rpy2.robjects.numpy2ri
@@ -16,7 +16,6 @@ import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 readRDS = robjects.r['readRDS']
-
 
 class Analysis(object):
 
@@ -44,16 +43,19 @@ class Analysis(object):
 
     def get_marker_vector(self, data, labels):
 
-        ratio_vector = np.zeros(labels.shape[1])
+        ratio_vector = np.zeros(int(labels.shape[1]/2))
 
-        for i in range(labels.shape[1]):
-            ratio_vector[i] = np.median(data[labels[:, i] == 0, self.marker[i%7]]) / \
-                              (np.median(data[labels[:, i] == 1, self.marker[i%7]]))
+        for i in range(int(labels.shape[1]/2)):
+            p = [i, int(i+labels.shape[1]/2) % labels.shape[1]]
+            marker = self.marker[i%2]
+            sum = np.sum(labels[:, p], axis=1)
+            ratio_vector[i] = np.median(data[np.where(sum == 0), marker]) / \
+                              (np.median(data[np.where(sum == 1), marker]))
             if np.isnan(ratio_vector[i]):
                 ratio_vector[i] = 0
         return ratio_vector
 
-    def print_ratios(self, gene, iterations):
+    def print_ratios(self, iterations):
         for i in iterations:
             generated_data, generated_labels = self.load_samples(i)
 
@@ -156,7 +158,7 @@ class Analysis(object):
         for i in np.unique(labels):
             indices = np.where(labels == i)[0]
             plt.scatter(X[indices, 0], X[indices, 1],
-                        color=['red' if i else 'blue' for i in is_real[indices]],
+                        color=['blue' if i else 'red' for i in is_real[indices]],
                         marker=markers[i % 7])
 
     def save_pca_plots(self, iterations, plotter):
@@ -176,7 +178,7 @@ class Analysis(object):
         self.figure_settings = {
             'figsize': (30, 6)
         }
-        self.marker = [4, 1, 0, 2, 5, 3, 6]
+        self.marker = [1, 0]
 
         with open(experiment_path + '/config.json') as json_file:
             config = json.load(json_file)
@@ -184,7 +186,7 @@ class Analysis(object):
         self.config = config
         self.run_name = run_name
 
-        self.input_data = InputData(config['data_path'], use_test_set)
+        self.input_data = InputData(config['data_path'], RDSLoader(), use_test_set)
         
         self.input_data.preprocessing(config['log_transformation'], None if config['scaling'] not in Scaling.__members__ else Scaling[config['scaling']])
 

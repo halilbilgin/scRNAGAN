@@ -19,26 +19,43 @@ class ACGAN():
         
         for i in range(len(config.d_hidden_layers)):
             connected = tf.layers.dropout(fully_connected(connected, config.d_hidden_layers[i],
-                        config.activation_function, config.normalizer_fn,
-                        normalizer_params=config.normalizer_params,
+                        config.activation_function,
                         weights_regularizer = config.weights_regularizer,
                         reuse=tf.AUTO_REUSE, scope='discriminator_'+str(i)), config.d_dropout, training=self.phase)
-        
-        out_gan = fully_connected(connected, num_outputs=1, activation_fn=tf.nn.sigmoid
-                                    , reuse=tf.AUTO_REUSE, scope='discriminator_out_gan')
-        
+        if config.wgan:
+            out_gan = fully_connected(connected, num_outputs=1,
+                                  activation_fn=None
+                                  , reuse=tf.AUTO_REUSE, scope='discriminator_out_gan')
+        else:
+            out_gan = fully_connected(connected, num_outputs=1,
+                                      activation_fn=tf.nn.sigmoid
+                                      , reuse=tf.AUTO_REUSE, scope='discriminator_out_gan')
+
         out_aux = fully_connected(connected, num_outputs=config.y_dim, activation_fn=None
                                     , reuse=tf.AUTO_REUSE, scope='discriminator_out_aux')
         
         return out_gan, out_aux
-    
+
+    def Batchnorm(self, name, axes, inputs, is_training=None, stats_iter=None, update_moving_stats=True, fused=True,
+                  labels=None, n_labels=None):
+        """conditional batchnorm (dumoulin et al 2016) for BCHW conv filtermaps"""
+        if axes != [0, 2, 3]:
+            raise Exception('unsupported')
+        mean, var = tf.nn.moments(inputs, axes, keep_dims=True)
+        shape = mean.get_shape().as_list()  # shape is [1,n,1,1]
+        offset_m = tf.Variable(name + '.offset', np.zeros([n_labels, shape[1]], dtype='float32'))
+        scale_m = tf.Variable(name + '.scale', np.ones([n_labels, shape[1]], dtype='float32'))
+        offset = tf.nn.embedding_lookup(offset_m, labels)
+        scale = tf.nn.embedding_lookup(scale_m, labels)
+        result = tf.nn.batch_normalization(inputs, mean, var, offset[:, :, None, None], scale[:, :, None, None], 1e-5)
+        return result
+
     def generator(self, z, c):
         
         config = self.config
-        
-     
+
         connected = tf.concat(axis=1, values=[z, c])
-        
+
         for i in range(len(config.g_hidden_layers)):
             connected = tf.layers.dropout(fully_connected(connected, config.g_hidden_layers[i],
                             config.activation_function, config.normalizer_fn,
@@ -49,38 +66,65 @@ class ACGAN():
         return fully_connected(connected, config.X_dim, 
                                activation_fn=config.generator_output_activation, 
                                reuse=tf.AUTO_REUSE, scope='generator_out')
-    
-    
+
     def get_losses(self, D_real, C_real, D_fake, C_fake):
         config = self.config
-        
         C_loss = cross_entropy(C_real, self.y) + cross_entropy(C_fake, self.y)
-        
-        D_loss = tf.reduce_mean(tf.log(tf.maximum(D_real + tf.random_uniform([config.mb_size,1],
-                                              -config.label_noise,config.label_noise), 0) + config.eps) + 
-                                tf.log(tf.maximum(1. - D_fake + tf.random_uniform([config.mb_size,1], 
-                                              -config.label_noise,config.label_noise), 0) + config.eps))
-        
-        DC_loss = -(D_loss + C_loss)
-        
-        G_loss = tf.reduce_mean(tf.log(D_fake + config.eps))
-        
-        GC_loss = -(G_loss + C_loss)
-        
+
+        if config.wgan:
+            G_loss = -tf.reduce_mean(D_fake)
+            D_loss = tf.reduce_mean(D_fake  - D_real)
+
+            epsilon = tf.random_uniform(
+                shape=[config.mb_size, 1],
+                minval=0.,
+                maxval=1.
+            )
+            X_hat = self.X + epsilon * (self.G_sample - self.X)
+
+            D_X_hat = self.discriminator(X_hat)
+            grad_D_X_hat = tf.gradients(D_X_hat, [X_hat])[0]
+
+            slopes = tf.sqrt(tf.reduce_sum(tf.square(grad_D_X_hat), reduction_indices=[1]))
+
+            gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
+            D_loss += 10 * gradient_penalty
+
+        else:
+            D_loss = -tf.reduce_mean(tf.log(tf.maximum(D_real + tf.random_uniform([config.mb_size,1],
+                                                  -config.label_noise,config.label_noise), 0) + config.eps) +
+                                    tf.log(tf.maximum(1. - D_fake + tf.random_uniform([config.mb_size,1],
+                                                  -config.label_noise,config.label_noise), 0) + config.eps))
+
+            G_loss = -tf.reduce_mean(tf.log(D_fake + config.eps))
+
+        DC_loss = D_loss - C_loss
+        if not config.closs_scale_g:
+            config.closs_scale_g = 0.1
+
+        GC_loss = G_loss - config.closs_scale_g*C_loss
+
         return D_loss, G_loss, DC_loss, GC_loss, C_loss
         
     def get_optimizers(self, DC_loss, GC_loss, return_grads = True):
         config = self.config
         theta_D = [t for t in tf.trainable_variables() if t.name.startswith('discriminator')]        
         theta_G = [t for t in tf.trainable_variables() if t.name.startswith('generator')]
-                
-        opt = tf.train.AdamOptimizer(learning_rate=config.lr)
+
+        if config.wgan:
+            decay = tf.maximum(0., 1. - (tf.cast(self._iteration, tf.float32) / self.totalIteration))
+
+            opt = tf.train.AdamOptimizer(learning_rate=config.lr*decay, beta1=0, beta2=0.9)
+        else:
+            opt = tf.train.AdamOptimizer(learning_rate=config.lr)
         with tf.variable_scope('optimizers', reuse=tf.AUTO_REUSE):
 
-            D_grads = opt.compute_gradients(DC_loss, theta_D)
+            D_grads = opt.compute_gradients(DC_loss, theta_D,
+                            colocate_gradients_with_ops= True if config.wgan else False)
             D_solver = opt.apply_gradients(D_grads)
 
-            G_grads = opt.compute_gradients(GC_loss, var_list=theta_G)
+            G_grads = opt.compute_gradients(GC_loss, var_list=theta_G,
+                            colocate_gradients_with_ops=True if config.wgan else False)
             G_solver = opt.apply_gradients(G_grads)
         
         if(return_grads):
@@ -123,7 +167,8 @@ class ACGAN():
             self.y = tf.placeholder(tf.float32, shape=[None, config.y_dim], name='LabelData')
             self.z = tf.placeholder(tf.float32, shape=[None, config.z_dim], name='GeneratorPriors')
             self.phase = tf.placeholder(tf.bool, name='phase')
-        
+            self._iteration = tf.placeholder(tf.int32, shape=None)
+            self.totalIteration = tf.placeholder(tf.float32, shape=None)
         config.normalizer_params['is_training'] = self.phase
         
         self.G_sample = self.generator(self.z, self.y)
@@ -149,7 +194,6 @@ class ACGAN():
     def train_and_log(self, next_batch, logs_path, iterations = 3000, summary_freq=10, print_freq=20,
                       log_sample_freq=150, log_sample_size=200, d_steps=1, sample_z=sample_z):
         config = self.config
-        
         sess = tf.Session()
         self.sess = sess
 
@@ -163,6 +207,7 @@ class ACGAN():
                                                     graph=tf.get_default_graph())
 
         for it in range(iterations):
+
             for d_step in range(d_steps):
                 X_mb, y_mb = next_batch(config.mb_size, (d_step+1)*it)
                 z_mb = sample_z(config.mb_size, config.z_dim)
@@ -170,12 +215,14 @@ class ACGAN():
                 _, DC_loss_curr, c_acc, f_acc = sess.run(
                     [self.D_solver, self.DC_loss, self.discriminator_class_accuracy, self.discriminator_fake_accuracy],
 
-                    feed_dict={self.X: X_mb, self.y: y_mb, self.z: z_mb, self.phase: 1}
+                    feed_dict={self.X: X_mb, self.y: y_mb, self.z: z_mb, self.phase: 1,
+                               self._iteration: it, self.totalIteration: iterations}
                 )
 
             _, GC_loss_curr, summary = sess.run(
                 [self.G_solver, self.GC_loss, merged_summary_op],
-                feed_dict={self.X: X_mb, self.y: y_mb, self.z: z_mb, self.phase: 1}
+                feed_dict={self.X: X_mb, self.y: y_mb, self.z: z_mb, self.phase: 1,
+                               self._iteration: it, self.totalIteration: iterations}
             )
 
             if it % summary_freq == 0:
@@ -207,7 +254,6 @@ class ACGAN():
 
     def __init__(self, X_dim, y_dim, input_data, **kwargs):
         self.input_data = input_data
-
         default_config = {
             'd_hidden_layers': [180, 45],
             'g_hidden_layers': [50, 200],

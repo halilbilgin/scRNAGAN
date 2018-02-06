@@ -7,23 +7,9 @@ from matplotlib import gridspec
 from sklearn import preprocessing
 from enum import Enum
 
-import rpy2.robjects as robjects
-from rpy2.robjects import pandas2ri
-pandas2ri.activate()
-readRDS = robjects.r['readRDS']
-
 class Scaling(Enum):
     minmax = 1
     standard = 2
-
-    @staticmethod
-    def get_scaler(s):
-        if s == Scaling.minmax:
-            return preprocessing.MinMaxScaler
-        elif s == Scaling.standard:
-            return preprocessing.StandardScaler
-        else:
-            ValueError('Wrong value')
 
 class InputData():
     
@@ -39,10 +25,9 @@ class InputData():
     def __scale(self, scaling=Scaling.minmax):
         
         if scaling==Scaling.minmax:
-            scaler = preprocessing.MinMaxScaler()
+            scaler = preprocessing.MinMaxScaler((-1, 1))
         else:
             scaler = preprocessing.StandardScaler()
-        
 
         scaler.fit(self.train)
         self.train = scaler.transform(self.train)
@@ -50,22 +35,17 @@ class InputData():
         self.scaler = scaler
         
     def load_data(self, dataset_path, test=True):
-        self.train_raw = readRDS(dataset_path+'/train.rds')
-        self.train_raw = pandas2ri.ri2py(self.train_raw)
-        self.train_labels = readRDS(dataset_path+'/train_labels.rds')
-        self.train_labels = pandas2ri.ri2py(self.train_labels).as_matrix()
-        
+        loader = self.loader
+        self.train_raw, self.train_labels = loader.load_train_set(dataset_path)
+
         if test:
-            self.test_raw = readRDS(dataset_path+'/test.rds')
-            self.test_raw = pandas2ri.ri2py(self.test_raw)
-            self.test_labels = readRDS(dataset_path+'/test_labels.rds') 
-            self.test_labels = pandas2ri.ri2py(self.test_labels).as_matrix()
+            self.test_raw, self.test_labels = loader.load_test_set(self.test_labels).as_matrix()
         
     
     def __log_transform(self):
         self.train = np.log2(self.train + 1e-8)
     
-    def preprocessing(self, log_transformation=True, scaling=Scaling.minmax):
+    def preprocessing(self, log_transformation, scaling):
         
         # Don't allow to do preprocessing twice, just to avoid possible hazards.
         self.train = self.train_raw
@@ -106,8 +86,9 @@ class InputData():
         else:
             return self.test, self.test_labels
     
-    def __init__(self, dataset_path, test_set=False):
+    def __init__(self, dataset_path, loader, test_set=False):
         self.done_preprocessing = False
+        self.loader = loader
         self.scaler = None
         
         self.load_data(dataset_path, test_set)
