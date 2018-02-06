@@ -22,33 +22,15 @@ class ACGAN():
                         config.activation_function,
                         weights_regularizer = config.weights_regularizer,
                         reuse=tf.AUTO_REUSE, scope='discriminator_'+str(i)), config.d_dropout, training=self.phase)
-        if config.wgan:
-            out_gan = fully_connected(connected, num_outputs=1,
-                                  activation_fn=None
+
+        out_gan = fully_connected(connected, num_outputs=1,
+                                  activation_fn=None if config.wgan else tf.nn.sigmoid
                                   , reuse=tf.AUTO_REUSE, scope='discriminator_out_gan')
-        else:
-            out_gan = fully_connected(connected, num_outputs=1,
-                                      activation_fn=tf.nn.sigmoid
-                                      , reuse=tf.AUTO_REUSE, scope='discriminator_out_gan')
 
         out_aux = fully_connected(connected, num_outputs=config.y_dim, activation_fn=None
                                     , reuse=tf.AUTO_REUSE, scope='discriminator_out_aux')
         
         return out_gan, out_aux
-
-    def Batchnorm(self, name, axes, inputs, is_training=None, stats_iter=None, update_moving_stats=True, fused=True,
-                  labels=None, n_labels=None):
-        """conditional batchnorm (dumoulin et al 2016) for BCHW conv filtermaps"""
-        if axes != [0, 2, 3]:
-            raise Exception('unsupported')
-        mean, var = tf.nn.moments(inputs, axes, keep_dims=True)
-        shape = mean.get_shape().as_list()  # shape is [1,n,1,1]
-        offset_m = tf.Variable(name + '.offset', np.zeros([n_labels, shape[1]], dtype='float32'))
-        scale_m = tf.Variable(name + '.scale', np.ones([n_labels, shape[1]], dtype='float32'))
-        offset = tf.nn.embedding_lookup(offset_m, labels)
-        scale = tf.nn.embedding_lookup(scale_m, labels)
-        result = tf.nn.batch_normalization(inputs, mean, var, offset[:, :, None, None], scale[:, :, None, None], 1e-5)
-        return result
 
     def generator(self, z, c):
         
