@@ -50,7 +50,7 @@ def get_activation(s, alpha=0.1):
     elif(s == 'none'):
         return None
     else:
-        raise ValueError("No such activation is implemented")
+        raise NotImplementedError("No such activation is implemented")
 
 def leaky_relu(x, alpha=0.1):
     return tf.maximum(x, alpha * x)

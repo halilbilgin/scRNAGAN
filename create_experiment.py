@@ -59,6 +59,12 @@ if __name__ == '__main__':
     parser.add_argument("-label_noise", "--label_noise", type=float,
                         help="discriminator dropout")
 
+    parser.add_argument("-leaky_param", "--leaky_param", type=float,
+                        help="leaky RELU alpha value")
+
+    parser.add_argument("-wgan", "--wgan", type=float,
+                        help="1 if modified wgan loss else 0")
+    
     args = parser.parse_args()
 
     if not os.path.isdir(args.data_path):

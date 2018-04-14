@@ -6,11 +6,11 @@ import os
 import sys
 from libraries.utils import get_activation
 import tensorflow as tf
-from libraries.data_loader import RDSLoader
-# python3 train.py -epath /home/halilbilgin/remoteSeqGAN/out/experiment2 -i 3000 -s_freq 10 -p_freq 10 -l_freq 100 -l_size 250 -d_steps 1
+from libraries.IO import get_IO
+
+# python3 train.py -epath /home/halilbilgin/remoteSeqGAN/out/experiment2 -i 3000 -s_freq 10 -p_freq 10 -l_freq 100 -l_size 250
 
 def train(args):
-    print(args.experiment_path)
 
     if not os.path.isdir(args.experiment_path):
         print("Experiment directory should exist.")
@@ -33,11 +33,6 @@ def train(args):
 
     config['experiment_path'] = args.experiment_path
 
-    input_data = InputData(config['data_path'], RDSLoader())
-
-    input_data.preprocessing(config['log_transformation'], None if config['scaling'] not in Scaling.__members__ else Scaling[config['scaling']])
-
-    train_data, train_labels = input_data.get_data()
     if 'leaky_param' not in config:
         config['leaky_param'] = 0.1
 
@@ -53,6 +48,21 @@ def train(args):
         config['normalizer_fn'] = tf.contrib.layers.batch_norm
         config['normalizer_params'] = {'center': True, 'scale': True}
 
+    if 'IO' not in config:
+        config['IO'] = 'rds'
+
+    IO = get_IO(config['IO'])
+
+    input_data = InputData(config['data_path'], IO)
+
+    if config['scaling'] not in Scaling.__members__:
+        scaling = None
+    else:
+        scaling = Scaling[config['scaling']]
+    input_data.preprocessing(config['log_transformation'], scaling)
+
+    train_data, train_labels = input_data.get_data()
+
     acgan = ACGAN(train_data.shape[1], train_labels.shape[1], input_data, **config)
 
     acgan.build_model()
@@ -64,7 +74,7 @@ def train(args):
 
     del train_config['experiment_path'], train_config['run_name'], train_config['epochs']
 
-    acgan.train_and_log(input_data.iterator, dir_name, **train_config)
+    acgan.train_and_log(input_data.iterator, dir_name, IO, **train_config)
     acgan.close_session()
 
 if __name__ == "__main__":
@@ -84,8 +94,6 @@ if __name__ == "__main__":
                         help="generator sample log frequency (iterations)")
     parser.add_argument("-l_size", "--log_sample_size", default = 250, type=int,
                         help="generator sample log frequency (iterations)")
-    parser.add_argument("-d_steps", "--d_steps", default=1, type=int,
-                        help="discriminator steps in each iteration")
 
     args = parser.parse_args()
 

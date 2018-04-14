@@ -5,9 +5,7 @@ import os
 from tensorflow.contrib.layers import fully_connected
 from libraries.utils import sample_z, cross_entropy, objdict
 import sys
-import rpy2.robjects as ro
-import rpy2.robjects.numpy2ri
-rpy2.robjects.numpy2ri.activate()
+
 
 class ACGAN():
     
@@ -81,7 +79,7 @@ class ACGAN():
             G_loss = -tf.reduce_mean(tf.log(D_fake + config.eps))
 
         DC_loss = D_loss - C_loss
-        if not config.closs_scale_g:
+        if 'closs_scale_g' not in config or not config.closs_scale_g:
             config.closs_scale_g = 0.1
 
         GC_loss = G_loss - config.closs_scale_g*C_loss
@@ -173,8 +171,9 @@ class ACGAN():
     def get_config(self):
         return self.config
     
-    def train_and_log(self, next_batch, logs_path, iterations = 3000, summary_freq=10, print_freq=20,
-                      log_sample_freq=150, log_sample_size=200, d_steps=1, sample_z=sample_z):
+    def train_and_log(self, next_batch, logs_path, IO, iterations = 3000, summary_freq=10, print_freq=20,
+                      log_sample_freq=150, log_sample_size=200, sample_z=sample_z):
+        self.IO = IO
         config = self.config
         sess = tf.Session()
         self.sess = sess
@@ -190,7 +189,7 @@ class ACGAN():
 
         for it in range(iterations):
 
-            for d_step in range(d_steps):
+            for d_step in range(config.d_steps):
                 X_mb, y_mb = next_batch(config.mb_size, (d_step+1)*it)
                 z_mb = sample_z(config.mb_size, config.z_dim)
 
@@ -225,18 +224,18 @@ class ACGAN():
                 samples = sess.run(self.G_sample, feed_dict={self.z: sample_z(log_sample_size, config.z_dim),
                                                      self.y: c, self.phase: 0})
                 samples = self.input_data.inverse_preprocessing(samples, config.log_transformation, self.input_data.scaler)
-
-                samples = ro.r.matrix(samples, nrow=samples.shape[0], ncol=samples.shape[1])
-
-                ro.r.assign("samples", samples)
-                ro.r.assign("c", c)
                 filename = logs_path+'/'+'{}'.format(str(it).zfill(5))
-                ro.r("saveRDS(samples, file='"+filename+".rds')")
-                ro.r("saveRDS(c, file='" + filename+ "_labels.rds')")
+
+                self.IO.save(samples, filename)
+                self.IO.save(c, filename+'_labels')
+
+
+
 
     def __init__(self, X_dim, y_dim, input_data, **kwargs):
         self.input_data = input_data
         default_config = {
+            'd_steps' : 1,
             'd_hidden_layers': [180, 45],
             'g_hidden_layers': [50, 200],
             'normalizer_fn': None,

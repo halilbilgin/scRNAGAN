@@ -35,7 +35,7 @@ class InputData():
         self.scaler = scaler
         
     def load_data(self, dataset_path, test=True):
-        loader = self.loader
+        loader = self.IO
         self.train_raw, self.train_labels = loader.load_train_set(dataset_path)
 
         if test:
@@ -86,9 +86,9 @@ class InputData():
         else:
             return self.test, self.test_labels
     
-    def __init__(self, dataset_path, loader, test_set=False):
+    def __init__(self, dataset_path, IO, test_set=False):
         self.done_preprocessing = False
-        self.loader = loader
+        self.IO = IO
         self.scaler = None
         
         self.load_data(dataset_path, test_set)
