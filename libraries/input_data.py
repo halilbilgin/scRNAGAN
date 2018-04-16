@@ -35,12 +35,12 @@ class InputData():
         self.scaler = scaler
         
     def load_data(self, dataset_path, test=True):
-        loader = self.IO
-        self.train_raw, self.train_labels = loader.load_train_set(dataset_path)
+
+        self.train_raw, self.train_labels = self.IO.load_train_set(dataset_path)
 
         if test:
-            self.test_raw, self.test_labels = loader.load_test_set(self.test_labels).as_matrix()
-        
+            self.test_raw, self.test_labels = self.IO.load_test_set(self.test_labels).as_matrix()
+
     
     def __log_transform(self):
         self.train = np.log2(self.train + 1e-8)

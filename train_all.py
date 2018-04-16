@@ -24,8 +24,6 @@ parser.add_argument("-l_freq", "--log_sample_freq", default = 100, type=int,
                     help="generator sample log frequency (iterations)")
 parser.add_argument("-l_size", "--log_sample_size", default = 250, type=int,
                     help="generator sample log frequency (iterations)")
-parser.add_argument("-d_steps", "--d_steps", default=1, type=int,
-                    help="discriminator steps in each iteration")
 
 args = parser.parse_args()
 

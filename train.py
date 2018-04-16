@@ -4,13 +4,13 @@ import json
 import argparse
 import os
 import sys
-from libraries.utils import get_activation
+from libraries.utils import get_acgan
 import tensorflow as tf
 from libraries.IO import get_IO
 
 # python3 train.py -epath /home/halilbilgin/remoteSeqGAN/out/experiment2 -i 3000 -s_freq 10 -p_freq 10 -l_freq 100 -l_size 250
 
-def train(args):
+def train(args, return_output=False):
 
     if not os.path.isdir(args.experiment_path):
         print("Experiment directory should exist.")
@@ -33,49 +33,23 @@ def train(args):
 
     config['experiment_path'] = args.experiment_path
 
-    if 'leaky_param' not in config:
-        config['leaky_param'] = 0.1
-
-    config['activation_function'] = get_activation(config['activation_function'], config['leaky_param'])
-    config['generator_output_activation'] = get_activation('tanh' if config['scaling'] == 'minmax' else 'none')
-
-    if 'wgan' not in config:
-        config['wgan'] = False
-
-    if 'normalizer_fn' not in config :
-        config['normalizer_fn'] = None
-    else:
-        config['normalizer_fn'] = tf.contrib.layers.batch_norm
-        config['normalizer_params'] = {'center': True, 'scale': True}
-
-    if 'IO' not in config:
-        config['IO'] = 'rds'
-
-    IO = get_IO(config['IO'])
-
-    input_data = InputData(config['data_path'], IO)
-
-    if config['scaling'] not in Scaling.__members__:
-        scaling = None
-    else:
-        scaling = Scaling[config['scaling']]
-    input_data.preprocessing(config['log_transformation'], scaling)
-
-    train_data, train_labels = input_data.get_data()
-
-    acgan = ACGAN(train_data.shape[1], train_labels.shape[1], input_data, **config)
+    acgan = get_acgan(config)
 
     acgan.build_model()
 
     train_config = vars(args)
+    _, train_labels = acgan.input_data.get_data()
 
-    iters_per_epoch = int(train_data.shape[0] / config['mb_size'] + 1)
+    iters_per_epoch = int(train_labels.shape[0] / config['mb_size'] + 1)
     train_config['iterations'] = iters_per_epoch * train_config['epochs'] + 1
 
-    del train_config['experiment_path'], train_config['run_name'], train_config['epochs']
+    del train_config['experiment_path'], train_config['run_name'], train_config['epochs'], train_config['IO']
 
-    acgan.train_and_log(input_data.iterator, dir_name, IO, **train_config)
-    acgan.close_session()
+    acgan.train_and_log(dir_name, acgan.input_data.IO, **train_config)
+    if return_output:
+        return acgan
+    else:
+        acgan.close_session()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -9,7 +9,7 @@ class IO_RDS():
         return self.load(folder + '/test.rds'), \
                self.load(self.readRDS(folder + '/test_labels.rds'), as_matrix=True)
 
-    def load(self, file, as_matrix):
+    def load(self, file, as_matrix=False):
         arr = self.pandas2ri.ri2py(self.readRDS(file))
         if(as_matrix):
             arr = arr.as_matrix()
