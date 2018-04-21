@@ -6,68 +6,70 @@ import sys
 import copy
 # Python program to print all paths from a source to destination.
 
-parser = argparse.ArgumentParser()
+def create_experiments(experiments_path, prefix, config):
+    keys = list(config.keys())
 
-parser.add_argument("-epath", "--experiments_path",
-                    help="path of the directory where experiment folder locates")
-parser.add_argument("-cfg", "--config_file",
-                    help="config file for creating experiments")
+    paths = []
+    path = dict(config)
 
-args = parser.parse_args()
+    def traverse_config(data, pathLen):
+        global path
+        path[keys[pathLen]] = data
 
-if not os.path.isfile(args.config_file):
-    print("Config file does not exist")
-    sys.exit(0)
+        if (pathLen == len(keys) - 1):
+            paths.append(path)
+            path = dict(path)
+            return
 
-with open(args.config_file) as json_file:
-    config = json.load(json_file)
+        pathLen += 1
 
-experiments_path = args.experiments_path
-prefix = config['experiments_prefix']
+        for i in config[keys[pathLen]]:
+            traverse_config(i, pathLen)
 
-del config['experiments_path'], config['experiments_prefix']
+    traverse_config(config['data_path'][0], 0)
 
-keys = list(config.keys())
+    if not os.path.isdir(experiments_path):
+        os.makedirs(experiments_path)
 
-paths = []
-path = dict(config)
-def traverse_config(data, pathLen):
-    global path
-    path[keys[pathLen]] = data
+    if args.config_file != os.path.join(experiments_path, 'exp.json'):
+        with open(args.config_file) as json_file:
+            f = open(os.path.join(experiments_path, 'exp.json'), 'w')
+            for line in json_file.readlines():
+                f.write(line)
+            f.close()
 
-    if (pathLen == len(keys)-1):
-        paths.append(path)
-        path = dict(path)
-        return
+    from create_experiment import create_experiment
+    i = 0
+    for cfg in paths:
+        cfg['experiment_path'] = os.path.join(experiments_path,
+                                              prefix + '_' + str(i))
+        if not os.path.isdir(cfg['experiment_path']):
+            os.makedirs(cfg['experiment_path'])
 
+        create_experiment(cfg)
 
-    pathLen+=1
+        i += 1
 
-    for i in config[keys[pathLen]]:
-        traverse_config(i, pathLen)
+if __name__=='__main__':
+    parser = argparse.ArgumentParser()
 
+    parser.add_argument("-epath", "--experiments_path",
+                        help="path of the directory where experiment folder locates")
+    parser.add_argument("-cfg", "--config_file",
+                        help="config file for creating experiments")
 
-traverse_config(config['data_path'][0], 0)
+    args = parser.parse_args()
 
-if not os.path.isdir(experiments_path):
-    os.makedirs(experiments_path)
+    if not os.path.isfile(args.config_file):
+        print("Config file does not exist")
+        sys.exit(0)
 
-if args.config_file != os.path.join(experiments_path,'exp.json'):
     with open(args.config_file) as json_file:
-        f = open(os.path.join(experiments_path,'exp.json'), 'w')
-        for line in json_file.readlines():
-            f.write(line)
-        f.close()
+        config = json.load(json_file)
 
+    experiments_path = args.experiments_path
+    prefix = config['experiments_prefix']
 
-from create_experiment import create_experiment
-i = 0
-for cfg in paths:
-    cfg['experiment_path'] = os.path.join(experiments_path,
-                                          prefix+'_'+str(i))
-    if not os.path.isdir(cfg['experiment_path']):
-        os.makedirs(cfg['experiment_path'])
+    del config['experiments_prefix']
 
-    create_experiment(cfg)
-
-    i += 1
+    create_experiments(experiments_path, prefix, config)
