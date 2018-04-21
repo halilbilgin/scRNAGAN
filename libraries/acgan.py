@@ -297,8 +297,7 @@ class ACGAN():
             'normalizer_params':{},
             'X_dim': X_dim,
             'y_dim': y_dim,
-            'z_dim': kwargs['z_dim'],
-            'generator_output_activation': kwargs['generator_output_activation']
+            'z_dim': kwargs['z_dim']
         }
 
         config = {**default_config, **kwargs}
