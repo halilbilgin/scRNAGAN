@@ -64,14 +64,14 @@ class InputData():
         if scaling in Scaling:
             self.__scale(scaling)
     
-    @staticmethod
-    def inverse_preprocessing(data, log_transformation, scaler=None):
+    def inverse_preprocessing(self, data):
 
-        if(scaler != None):
-            data = scaler.inverse_transform(data)
+        if(self.scaler != None):
+            data = self.scaler.inverse_transform(data)
 
-        if(log_transformation):
+        if(self.log_transformation):
             data = np.exp2(data)
+
         return data
     
     def get_raw_data(self, train=True):

@@ -3,7 +3,11 @@ import numpy as np
 import datetime
 import os
 from tensorflow.contrib.layers import fully_connected
-from libraries.utils import sample_z, cross_entropy, objdict
+from libraries.utils import sample_z, cross_entropy, objdict, get_activation
+from libraries.input_data import InputData, Scaling
+from libraries.IO import get_IO
+import json
+
 import sys
 
 
@@ -96,6 +100,7 @@ class ACGAN():
             opt = tf.train.AdamOptimizer(learning_rate=config.lr*decay, beta1=0, beta2=0.9)
         else:
             opt = tf.train.AdamOptimizer(learning_rate=config.lr)
+
         with tf.variable_scope('optimizers', reuse=tf.AUTO_REUSE):
 
             D_grads = opt.compute_gradients(DC_loss, theta_D,
@@ -138,7 +143,6 @@ class ACGAN():
         tf.summary.scalar("GC_loss", self.GC_loss)
         tf.summary.scalar("C_loss", self.C_loss)
 
-
     def build_model(self):
         config = self.config
         with tf.variable_scope("placeholders", reuse=tf.AUTO_REUSE):
@@ -162,39 +166,70 @@ class ACGAN():
                                             self.GC_loss, return_grads = True)       
         
         self.load_summary()
-    
-    def close_session(self):
-        tf.reset_default_graph()
-        self.sess.close()
 
     def get_config(self):
         return self.config
-    
-    def train_and_log(self, logs_path, IO, iterations = 3000, summary_freq=10, print_freq=20,
-                      log_sample_freq=150, log_sample_size=200, sample_z=sample_z):
-        self.IO = IO
-        config = self.config
-        sess = tf.Session()
-        self.sess = sess
-        next_batch = self.input_data.iterator
 
+    @staticmethod
+    def load(sess, config):
+
+        if 'IO' not in config:
+            config['IO'] = 'npy'
+
+        IO = get_IO(config['IO'])
+
+        input_data = InputData(config['data_path'], IO)
+
+        if config['scaling'] not in Scaling.__members__:
+            scaling = None
+        else:
+            scaling = Scaling[config['scaling']]
+        input_data.preprocessing(config['log_transformation'], scaling)
+
+        train_data, train_labels = input_data.get_data()
+
+        acgan = ACGAN(sess, train_data.shape[1], train_labels.shape[1], **config)
+        acgan.build_model()
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
+
+        return acgan, input_data
+
+    @staticmethod
+    def load_saved_acgan(sess, path):
+        with open(path + '/config.json') as json_file:
+            config = json.load(json_file)
+
+        config['experiment_path'] = path
+        acgan = ACGAN.load(config, sess)
+        acgan.build_model()
+        # load the saved model
+        saver = tf.train.Saver()
+        saver.restore(sess, path + 'model.ckpt')
+
+        return acgan
+
+    def train_and_log(self, logs_path, IO, input_data, iterations=3000, summary_freq=10, print_freq=20,
+                      log_sample_freq=150, log_sample_size=200, sample_z=sample_z):
+        sess = self.sess
+        config = self.config
+
         if not os.path.exists(logs_path):
             os.makedirs(logs_path)
 
         merged_summary_op = tf.summary.merge_all()
         summary_writer = tf.summary.FileWriter(logs_path,
-                                                    graph=tf.get_default_graph())
+                                               graph=tf.get_default_graph())
 
         for it in range(iterations):
 
             for d_step in range(config.d_steps):
-                X_mb, y_mb = next_batch(config.mb_size, (d_step+1)*it)
+                X_mb, y_mb = input_data.iterator(config.mb_size, (d_step + 1) * it)
                 z_mb = sample_z(config.mb_size, config.z_dim)
 
-                _, DC_loss_curr, c_acc, f_acc = sess.run(
-                    [self.D_solver, self.DC_loss, self.discriminator_class_accuracy, self.discriminator_fake_accuracy],
+                _, DC_loss_curr, aux_acc, gan_acc = sess.run(
+                    [self.D_solver, self.DC_loss, self.discriminator_class_accuracy,
+                     self.discriminator_fake_accuracy],
 
                     feed_dict={self.X: X_mb, self.y: y_mb, self.z: z_mb, self.phase: True,
                                self._iteration: it, self.totalIteration: iterations}
@@ -203,7 +238,7 @@ class ACGAN():
             _, GC_loss_curr, summary = sess.run(
                 [self.G_solver, self.GC_loss, merged_summary_op],
                 feed_dict={self.X: X_mb, self.y: y_mb, self.z: z_mb, self.phase: True,
-                               self._iteration: it, self.totalIteration: iterations}
+                           self._iteration: it, self.totalIteration: iterations}
             )
 
             if it % summary_freq == 0:
@@ -211,36 +246,41 @@ class ACGAN():
 
             if it % print_freq == 0:
                 print('Iter: {}; DC_loss: {:.4}; GC_loss: {:.4}; Discfakeacc: {:.2}; Discclassacc: {:.2};'
-                      .format(it, DC_loss_curr, GC_loss_curr, f_acc, c_acc ))
+                      .format(it, DC_loss_curr, GC_loss_curr, gan_acc, aux_acc))
 
-            if(DC_loss_curr > 1000):
-                return False
+            if (DC_loss_curr > 1000):
+                break
 
             if it % log_sample_freq == 0:
-                idx = np.random.randint(0, config.y_dim, log_sample_size)
-                c = np.zeros([log_sample_size, config.y_dim])
-                c[range(log_sample_size), idx] = 1
+                samples, c = self.generate_samples(log_sample_size)
+                samples = input_data.inverse_preprocessing(samples)
 
-                samples = self.generate_samples(c)
-                filename = logs_path+'/'+'{}'.format(str(it).zfill(5))
+                filename = logs_path + '/' + '{}'.format(str(it).zfill(5))
 
-                self.IO.save(samples, filename)
-                self.IO.save(c, filename+'_labels')
+                IO.save(samples, filename)
+                IO.save(c, filename + '_labels')
 
-    def generate_samples(self, c, inverse_preprocessing=True):
-        log_sample_size = c.shape[0]
-        config = self.config
-        samples = self.sess.run(self.G_sample, feed_dict={self.z: sample_z(log_sample_size, config.z_dim),
-                                                     self.y: c, self.phase: False})
-        if inverse_preprocessing:
-            return self.input_data.inverse_preprocessing(samples,
-                                                         config.log_transformation,
-                                                         self.input_data.scaler)
-        else:
-            return samples
+    def save_session(self, path):
+        # save the session
+        saver = tf.train.Saver()
+        saver.save(self.sess, path + '/model.ckpt')
 
-    def __init__(self, X_dim, y_dim, input_data, **kwargs):
-        self.input_data = input_data
+    def generate_samples(self, n_size):
+
+        y_dim = self.config.y_dim
+        z_dim = self.config.z_dim
+
+        idx = np.random.randint(0, y_dim, n_size)
+        c_samples = np.zeros([n_size, y_dim])
+        c_samples[range(n_size), idx] = 1
+
+        X_samples = self.sess.run(self.G_sample, feed_dict={self.z: sample_z(n_size, z_dim),
+                                                            self.y: c_samples, self.phase: False})
+
+        return X_samples, c_samples
+
+    def __init__(self, sess, X_dim, y_dim, **kwargs):
+        self.sess = sess
         default_config = {
             'd_steps' : 1,
             'd_hidden_layers': [180, 45],
@@ -261,5 +301,21 @@ class ACGAN():
             'generator_output_activation': kwargs['generator_output_activation']
         }
 
-        self.config = {**default_config, **kwargs}
-        self.config = objdict(self.config)
+        config = {**default_config, **kwargs}
+
+        if 'leaky_param' not in config:
+            config['leaky_param'] = 0.1
+
+        config['activation_function'] = get_activation(config['activation_function'], config['leaky_param'])
+        config['generator_output_activation'] = get_activation('tanh' if config['scaling'] == 'minmax' else 'none')
+
+        if 'wgan' not in config:
+            config['wgan'] = False
+
+        if 'normalizer_fn' not in config:
+            config['normalizer_fn'] = None
+        else:
+            config['normalizer_fn'] = tf.contrib.layers.batch_norm
+            config['normalizer_params'] = {'center': True, 'scale': True}
+
+        self.config = objdict(config)

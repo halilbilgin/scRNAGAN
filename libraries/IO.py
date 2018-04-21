@@ -32,6 +32,8 @@ class IO_RDS():
         self.ro = ro
         self.pandas2ri = pandas2ri
         self.readRDS = robjects.r['readRDS']
+    def get_extension(self):
+        return 'rds'
 
 class IO_NPY():
     def load_train_set(self, folder):
@@ -47,6 +49,9 @@ class IO_NPY():
 
     def save(self, nparray, filename):
         np.save(filename + '.npy', nparray)
+
+    def get_extension(self):
+        return 'npy'
 
 def get_IO(name):
     if name == 'rds':

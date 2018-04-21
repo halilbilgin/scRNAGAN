@@ -10,10 +10,8 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("-epath", "--experiments_path",
                     help="path of the directory where experiment folder locates")
-parser.add_argument("-rerun", "--rerun", type=int, default=0,
-                    help="should it rerun the experiment if it is already run")
-parser.add_argument("-rname", "--run_name", default="run1",
-                    help="name of the directory where the results will be saved")
+parser.add_argument("-repeat", "--repeat", type=int, default=1,
+                    help="the number of time an experiment will rerun")
 parser.add_argument("-epochs", "--epochs", default = 25, type=int,
                     help="number of epochs")
 parser.add_argument("-s_freq", "--summary_freq", type=int, default = 10,
@@ -31,10 +29,10 @@ if not os.path.isdir(args.experiments_path):
     raise FileNotFoundError("Not correct path")
 
 experiments_path = args.experiments_path
-rerun = True if args.rerun == 1 else False
+repeat = args.repeat
 subdirectories = next(os.walk(experiments_path))[1]
 subdirectories.sort()
-del args.rerun, args.experiments_path
+del args.repeat, args.experiments_path
 experiment_path = os.path.join(experiments_path, subdirectories[0])
 
 for subdir in subdirectories:
@@ -42,10 +40,11 @@ for subdir in subdirectories:
     config_file = os.path.join(experiment_path, "config.json")
     if not os.path.isfile(config_file):
         continue
-    if os.path.isdir(os.path.join(experiment_path, args.run_name)) and not rerun:
-        continue
+    for i in range(repeat):
+        if os.path.isdir(os.path.join(experiment_path, 'run_' + str(repeat-1))):
+            continue
 
-    clone_args = copy.deepcopy(args)
-    clone_args.experiment_path = experiment_path
+        clone_args = copy.deepcopy(args)
+        clone_args.experiment_path = experiment_path
 
-    train(clone_args)
+        train(clone_args)

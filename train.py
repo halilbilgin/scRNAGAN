@@ -4,9 +4,8 @@ import json
 import argparse
 import os
 import sys
-from libraries.utils import get_acgan
 import tensorflow as tf
-from libraries.IO import get_IO
+from libraries.utils import close_session
 
 # python3 train.py -epath /home/halilbilgin/remoteSeqGAN/out/experiment2 -i 3000 -s_freq 10 -p_freq 10 -l_freq 100 -l_size 250
 
@@ -20,10 +19,10 @@ def train(args, return_output=False):
         print("Model config file should exist.")
         sys.exit(0)
 
-    dir_name = args.run_name
-    i = 0
+    dir_name = 'run_0'
+    i = 1
     while os.path.isdir(args.experiment_path + '/' + dir_name):
-        dir_name = args.run_name + '_' + str(i)
+        dir_name = 'run_' + str(i)
         i += 1
 
     dir_name = args.experiment_path + '/' + dir_name
@@ -33,31 +32,36 @@ def train(args, return_output=False):
 
     config['experiment_path'] = args.experiment_path
 
-    acgan = get_acgan(config)
-
-    acgan.build_model()
+    sess = tf.Session()
+    close_session(sess)
+    sess = tf.Session()
+    acgan, input_data = ACGAN.load(sess, config)
 
     train_config = vars(args)
-    _, train_labels = acgan.input_data.get_data()
+    _, train_labels = input_data.get_data()
 
     iters_per_epoch = int(train_labels.shape[0] / config['mb_size'] + 1)
     train_config['iterations'] = iters_per_epoch * train_config['epochs'] + 1
 
-    del train_config['experiment_path'], train_config['run_name'], train_config['epochs'], train_config['IO']
+    del train_config['experiment_path'], train_config['epochs']
+    if 'IO' in train_config:
+        del train_config['IO']
+        
 
-    acgan.train_and_log(dir_name, acgan.input_data.IO, **train_config)
+    acgan.train_and_log(dir_name, input_data.IO, input_data, **train_config)
+
+
     if return_output:
-        return acgan
+        return acgan, dir_name
     else:
-        acgan.close_session()
+        acgan.save_session(dir_name)
+        close_session(sess)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-epath", "--experiment_path",
                         help="path of the directory where experiment config and results will be stored")
-    parser.add_argument("-rname", "--run_name", default="run1",
-                        help="name of the directory where the results will be saved")
     parser.add_argument("-epochs", "--epochs", default = 25, type=int,
                         help="number of epochs")
     parser.add_argument("-s_freq", "--summary_freq", type=int, default = 10,
