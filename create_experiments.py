@@ -12,8 +12,7 @@ def create_experiments(experiments_path, prefix, config):
     paths = []
     path = dict(config)
 
-    def traverse_config(data, pathLen):
-        global path
+    def traverse_config(data, pathLen, path):
         path[keys[pathLen]] = data
 
         if (pathLen == len(keys) - 1):
@@ -24,9 +23,9 @@ def create_experiments(experiments_path, prefix, config):
         pathLen += 1
 
         for i in config[keys[pathLen]]:
-            traverse_config(i, pathLen)
+            traverse_config(i, pathLen, path)
 
-    traverse_config(config['data_path'][0], 0)
+    traverse_config(config['data_path'][0], 0, path)
 
     if not os.path.isdir(experiments_path):
         os.makedirs(experiments_path)
