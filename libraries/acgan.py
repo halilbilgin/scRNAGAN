@@ -221,13 +221,23 @@ class ACGAN():
                 c = np.zeros([log_sample_size, config.y_dim])
                 c[range(log_sample_size), idx] = 1
 
-                samples = sess.run(self.G_sample, feed_dict={self.z: sample_z(log_sample_size, config.z_dim),
-                                                     self.y: c, self.phase: False})
-                samples = self.input_data.inverse_preprocessing(samples, config.log_transformation, self.input_data.scaler)
+                samples = self.generate_samples(c)
                 filename = logs_path+'/'+'{}'.format(str(it).zfill(5))
 
                 self.IO.save(samples, filename)
                 self.IO.save(c, filename+'_labels')
+
+    def generate_samples(self, c, inverse_preprocessing=True):
+        log_sample_size = c.shape[0]
+        config = self.config
+        samples = self.sess.run(self.G_sample, feed_dict={self.z: sample_z(log_sample_size, config.z_dim),
+                                                     self.y: c, self.phase: False})
+        if inverse_preprocessing:
+            return self.input_data.inverse_preprocessing(samples,
+                                                         config.log_transformation,
+                                                         self.input_data.scaler)
+        else:
+            return samples
 
     def __init__(self, X_dim, y_dim, input_data, **kwargs):
         self.input_data = input_data
