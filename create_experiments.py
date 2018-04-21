@@ -30,12 +30,6 @@ def create_experiments(experiments_path, prefix, config):
     if not os.path.isdir(experiments_path):
         os.makedirs(experiments_path)
 
-    if args.config_file != os.path.join(experiments_path, 'exp.json'):
-        with open(args.config_file) as json_file:
-            f = open(os.path.join(experiments_path, 'exp.json'), 'w')
-            for line in json_file.readlines():
-                f.write(line)
-            f.close()
 
     from create_experiment import create_experiment
     i = 0
@@ -72,3 +66,10 @@ if __name__=='__main__':
     del config['experiments_prefix']
 
     create_experiments(experiments_path, prefix, config)
+
+    if args.config_file != os.path.join(experiments_path, 'exp.json'):
+        with open(args.config_file) as json_file:
+            f = open(os.path.join(experiments_path, 'exp.json'), 'w')
+            for line in json_file.readlines():
+                f.write(line)
+            f.close()
