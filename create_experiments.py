@@ -12,18 +12,18 @@ def create_experiments(experiments_path, prefix, config):
     paths = []
     path = dict(config)
 
-    def traverse_config(data, pathLen, path, paths):
-        path[keys[pathLen]] = data
+    def traverse_config(data, pathLen, curPath, paths):
+        curPath[keys[pathLen]] = data
 
         if (pathLen == len(keys) - 1):
-            paths.append(path)
-            path = dict(path)
+            paths.append(dict(curPath))
+            path = dict(config)
             return
 
         pathLen += 1
 
         for i in config[keys[pathLen]]:
-            traverse_config(i, pathLen, path, paths)
+            traverse_config(i, pathLen, curPath, paths)
 
     traverse_config(config['data_path'][0], 0, path, paths)
 
