@@ -9,7 +9,7 @@ from libraries.utils import close_session
 
 # python3 train.py -epath /home/halilbilgin/remoteSeqGAN/out/experiment2 -i 3000 -s_freq 10 -p_freq 10 -l_freq 100 -l_size 250
 
-def train(args, return_output=False):
+def train(args, return_output=False, sess = False):
 
     if not os.path.isdir(args.experiment_path):
         print("Experiment directory should exist.")
@@ -31,10 +31,9 @@ def train(args, return_output=False):
         config = json.load(json_file)
 
     config['experiment_path'] = args.experiment_path
+    if sess == False:
+        sess = tf.Session()
 
-    sess = tf.Session()
-    close_session(sess)
-    sess = tf.Session()
     acgan, input_data = ACGAN.load(sess, config)
 
     train_config = vars(args)
@@ -46,7 +45,7 @@ def train(args, return_output=False):
     del train_config['experiment_path'], train_config['epochs']
     if 'IO' in train_config:
         del train_config['IO']
-        
+
 
     acgan.train_and_log(dir_name, input_data.IO, input_data, **train_config)
 
