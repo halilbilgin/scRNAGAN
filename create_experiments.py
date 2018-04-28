@@ -10,14 +10,15 @@ def create_experiments(experiments_path, prefix, config):
     keys = list(config.keys())
 
     paths = []
-    path = dict(config)
+    path = copy.deepcopy(config)
 
     def traverse_config(data, pathLen, curPath, paths):
         curPath[keys[pathLen]] = data
 
         if (pathLen == len(keys) - 1):
             paths.append(dict(curPath))
-            path = dict(config)
+	    curPath = dict(curPath)
+            
             return
 
         pathLen += 1
@@ -25,7 +26,7 @@ def create_experiments(experiments_path, prefix, config):
         for i in config[keys[pathLen]]:
             traverse_config(i, pathLen, curPath, paths)
 
-    traverse_config(config['data_path'][0], 0, path, paths)
+    traverse_config(config['data_path'][0], -1, path, paths)
 
     if not os.path.isdir(experiments_path):
         os.makedirs(experiments_path)
@@ -37,11 +38,11 @@ def create_experiments(experiments_path, prefix, config):
                                               prefix + '_' + str(i))
         if not os.path.isdir(cfg['experiment_path']):
             os.makedirs(cfg['experiment_path'])
+        
 
         create_experiment(cfg)
 
         i += 1
-
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
 
