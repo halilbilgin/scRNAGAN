@@ -1,3 +1,4 @@
+
 import tensorflow as tf
 import numpy as np
 import datetime
@@ -22,7 +23,7 @@ class ACGAN():
             connected = tf.layers.dropout(fully_connected(connected, config.d_hidden_layers[i],
                         config.activation_function,
                         weights_regularizer = config.weights_regularizer,
-                        reuse=tf.AUTO_REUSE, scope='discriminator_'+str(i)), config.d_dropout, training=self.phase)
+                        reuse=tf.AUTO_REUSE, scope='discriminator_'+str(i)), float(config.d_dropout), training=self.phase)
 
         out_gan = fully_connected(connected, num_outputs=1,
                                   activation_fn=None if config.wgan else tf.nn.sigmoid
@@ -287,7 +288,7 @@ class ACGAN():
             'g_hidden_layers': [50, 200],
             'normalizer_fn': None,
             'weights_regularizer': None,
-            'activation_function': tf.nn.leaky_relu,
+            'activation_function': tf.nn.relu,
             'g_dropout': 0.3,
             'd_dropout': 0.5,
             'label_noise': 0.3,
@@ -299,8 +300,11 @@ class ACGAN():
             'y_dim': y_dim,
             'z_dim': kwargs['z_dim']
         }
-
-        config = {**default_config, **kwargs}
+	
+        config = default_config.copy()
+        config.update(kwargs)
+    
+        #config = {**default_config, **kwargs}
 
         if 'leaky_param' not in config:
             config['leaky_param'] = 0.1
