@@ -1,4 +1,24 @@
 import numpy as np
+import os
+import rpy2.robjects as ro
+
+import rpy2.robjects as robjects
+from rpy2.robjects import pandas2ri
+
+pandas2ri.activate()
+
+class IO_AUTO():
+    def load_train_set(self, folder):
+        if os.path.isfile(folder + '/train.npy'):
+            return IO_NPY().load_train_set(folder)
+        else:
+            return IO_RDS().load_train_set(folder)
+
+    def load_test_set(self, folder):
+        if os.path.isfile(folder + '/test.npy'):
+            return IO_NPY().load_test_set(folder)
+        else:
+            return IO_RDS().load_test_set(folder)
 
 class IO_RDS():
     def load_train_set(self, folder):
@@ -24,11 +44,7 @@ class IO_RDS():
         self.ro.r("saveRDS(samples, file='" + filename + ".rds')")
 
     def __init__(self):
-        import rpy2.robjects as ro
 
-        import rpy2.robjects as robjects
-        from rpy2.robjects import pandas2ri
-        pandas2ri.activate()
         self.ro = ro
         self.pandas2ri = pandas2ri
         self.readRDS = robjects.r['readRDS']
