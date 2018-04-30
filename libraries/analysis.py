@@ -9,13 +9,13 @@ import json
 from mpl_toolkits.mplot3d import Axes3D
 from libraries.IO import IO_RDS, IO_NPY, IO_AUTO
 from libraries.input_data import InputData, Scaling
-import rpy2.robjects as ro
-import rpy2.robjects.numpy2ri
-rpy2.robjects.numpy2ri.activate()
-import rpy2.robjects as robjects
-from rpy2.robjects import pandas2ri
-pandas2ri.activate()
-readRDS = robjects.r['readRDS']
+#import rpy2.robjects as ro
+#import rpy2.robjects.numpy2ri
+#rpy2.robjects.numpy2ri.activate()
+#import rpy2.robjects as robjects
+#from rpy2.robjects import pandas2ri
+#pandas2ri.activate()
+#readRDS = robjects.r['readRDS']
 import operator as o
 import matplotlib.cm as cm
 

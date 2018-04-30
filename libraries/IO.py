@@ -1,11 +1,6 @@
 import numpy as np
 import os
-import rpy2.robjects as ro
 
-import rpy2.robjects as robjects
-from rpy2.robjects import pandas2ri
-
-pandas2ri.activate()
 
 class IO_AUTO():
     def load_train_set(self, folder):
@@ -44,6 +39,11 @@ class IO_RDS():
         self.ro.r("saveRDS(samples, file='" + filename + ".rds')")
 
     def __init__(self):
+	import rpy2.robjects as ro
+	import rpy2.robjects as robjects
+	from rpy2.robjects import pandas2ri
+
+	pandas2ri.activate()
 
         self.ro = ro
         self.pandas2ri = pandas2ri
