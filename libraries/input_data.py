@@ -73,7 +73,7 @@ class InputData():
             data = np.exp2(data)
 
         return data
-    
+
     def get_raw_data(self, train=True):
         if train:
             return self.train_raw, self.train_labels

@@ -1,16 +1,12 @@
-
 import tensorflow as tf
 import numpy as np
 import datetime
 import os
 from tensorflow.contrib.layers import fully_connected
-from libraries.utils import sample_z, cross_entropy, objdict, get_activation
+from libraries.utils import sample_z, cross_entropy, objdict, get_activation, get_optimizer, get_learning_schedule
 from libraries.input_data import InputData, Scaling
 from libraries.IO import get_IO
 import json
-
-import sys
-
 
 class ACGAN():
     
@@ -98,9 +94,9 @@ class ACGAN():
         if config.wgan:
             decay = tf.maximum(0., 1. - (tf.cast(self._iteration, tf.float32) / self.totalIteration))
 
-            opt = tf.train.AdamOptimizer(learning_rate=config.lr*decay, beta1=0, beta2=0.9)
+            opt = config['optimizer'](learning_rate=config.lr*decay, beta1=0, beta2=0.9)
         else:
-            opt = tf.train.AdamOptimizer(learning_rate=config.lr)
+            opt = config['optimizer'](learning_rate=config.learning_schedule(config.lr, self._iteration))
 
         with tf.variable_scope('optimizers', reuse=tf.AUTO_REUSE):
 
@@ -185,6 +181,17 @@ class ACGAN():
             scaling = None
         else:
             scaling = Scaling[config['scaling']]
+
+        if 'optimizer' not in config:
+            config['optimizer'] = 'Adam'
+
+        config['optimizer'] = get_optimizer(config['optimizer'])
+
+        if 'learning_schedule' not in config:
+            config['learning_schedule'] = 'no_schedule'
+
+        config['learning_schedule'] = get_learning_schedule(config['learning_schedule'])
+
         input_data.preprocessing(config['log_transformation'], scaling)
 
         train_data, train_labels = input_data.get_data()
@@ -300,7 +307,7 @@ class ACGAN():
             'y_dim': y_dim,
             'z_dim': kwargs['z_dim']
         }
-	
+
         config = default_config.copy()
         config.update(kwargs)
     

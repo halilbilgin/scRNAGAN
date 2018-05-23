@@ -197,7 +197,6 @@ class Analysis(object):
             files.append(os.path.join(self.run_path, 'run_'+str(i), filename))
             i+=1
 
-
         data = self.IO.load(files[0] + extension)
         for i in range(1, len(files)):
             data = np.concatenate((data, self.IO.load(files[i] + extension)), axis=0)

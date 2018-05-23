@@ -56,3 +56,25 @@ def get_activation(s, alpha=0.1):
 
 def leaky_relu(x, alpha=0.1):
     return tf.maximum(x, alpha * x)
+
+def get_optimizer(name):
+    if name == 'Adadelta':
+        return tf.train.AdadeltaOptimizer
+    elif name == 'Adagrad':
+        return tf.train.AdagradDAOptimizer
+    elif name == 'RMSProp':
+        return tf.train.RMSPropOptimizer
+    elif name == 'Momentum':
+        return tf.train.MomentumOptimizer
+    elif name == 'Adam':
+        return tf.train.AdamOptimizer
+    else:
+        raise NotImplementedError()
+
+def get_learning_schedule(name):
+    if name == 'no_schedule':
+        return lambda eta0, n : eta0
+    elif name == 'search_then_converge':
+        return lambda eta0, n: eta0 / (1 + n / 1000)
+    else:
+        raise NotImplementedError()
