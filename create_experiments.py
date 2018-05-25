@@ -4,6 +4,8 @@ import json
 import os
 import sys
 import copy
+import random
+import string
 # Python program to print all paths from a source to destination.
 
 def create_experiments(experiments_path, prefix, config):
@@ -32,17 +34,16 @@ def create_experiments(experiments_path, prefix, config):
         os.makedirs(experiments_path)
 
     from create_experiment import create_experiment
-    i = 0
+
     for cfg in paths:
+        hash  = ''.join(random.choice(string.ascii_uppercase) for _ in range(10))
         cfg['experiment_path'] = os.path.join(experiments_path,
-                                              prefix + '_' + str(i))
+                                              prefix + '_' + hash)
         if not os.path.isdir(cfg['experiment_path']):
             os.makedirs(cfg['experiment_path'])
-        
 
         create_experiment(cfg)
 
-        i += 1
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
 
