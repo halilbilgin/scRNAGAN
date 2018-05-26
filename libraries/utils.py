@@ -61,13 +61,15 @@ def get_optimizer(name):
     if name == 'Adadelta':
         return tf.train.AdadeltaOptimizer
     elif name == 'Adagrad':
-        return tf.train.AdagradDAOptimizer
+        return tf.train.AdagradOptimizer
     elif name == 'RMSProp':
         return tf.train.RMSPropOptimizer
-    elif name == 'Momentum':
-        return tf.train.MomentumOptimizer
+    elif name == 'GradientDescent':
+        return tf.train.GradientDescentOptimizer
     elif name == 'Adam':
         return tf.train.AdamOptimizer
+    elif name == 'Ftrl':
+        return tf.train.FtrlOptimizer
     else:
         raise NotImplementedError()
 

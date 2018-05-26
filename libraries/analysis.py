@@ -69,6 +69,9 @@ class Analysis(object):
 
         return generated_ratio
 
+    def get_hyperparams(self):
+        return self.config
+
     def get_true_ratio(self):
         train_data, train_labels = self.input_data.get_raw_data()
         true_ratio = self.get_marker_vector(train_data, train_labels)
@@ -95,8 +98,6 @@ class Analysis(object):
         ax = fig.add_subplot(111)
         self.barplot(ax, np.array(dpoints))
         plt.show()
-
-
 
     def barplot(self, ax, dpoints):
         '''
@@ -167,23 +168,13 @@ class Analysis(object):
         distances = np.linalg.norm(train_data[ind, :] - generated_data, axis=1)
         return np.mean(distances)
 
-    def pca(self, data, labels, is_real):
-
-        pca = decomposition.PCA(n_components=2)
-        pca.fit(data[is_real, :])
-
-        X = pca.transform(data)
-
-        return X
-
-        #plt.savefig(self.output_path+"/"+filename)
-
     def load_samples(self, iters, labels=True, verboseIteration=False):
         t = 0
         path = self.run_path + 'run_0/'
         filename =  str(iters - t).zfill(5)
         extension = '.' + self.IO.get_extension()
         while not os.path.isfile(os.path.join(path, filename + extension)):
+
             t += 1
             if t > iters:
                 raise ValueError("No log could be found.")
@@ -216,52 +207,22 @@ class Analysis(object):
         else:
             return data
 
-    def normal(self, iteration):
+    def plot_pca(self, iteration):
         data, labels, is_real = self.merge_train_and_generated_data(iteration)
-        indices = labels < 7
 
-        X = self.pca(data[indices], labels[indices], is_real[indices])
+        pca = decomposition.PCA(n_components=2)
+        pca.fit(data[is_real, :])
+
+        X = pca.transform(data)
 
         plt.scatter(X[:, 0], X[:, 1],
-                    color=['green' if i else 'red' for i in is_real[indices]])
-
-    def diabetic(self, iteration):
-        data, labels, is_real = self.merge_train_and_generated_data(iteration)
-        indices = labels >= 7
-
-        X = self.pca(data[indices], labels[indices], is_real[indices])
-
-        plt.scatter(X[:, 0], X[:, 1],
-                    color=['green' if i else 'red' for i in is_real[indices]])
-
-    def cell_types(self, iteration):
-        data, labels, is_real = self.merge_train_and_generated_data(iteration)
-        markers = ['o', 's', '+', '.', '<', '>', "*"]
-        X = self.pca(data, labels, is_real)
-        for i in np.unique(labels):
-            indices = np.where(labels == i)[0]
-            plt.scatter(X[indices, 0], X[indices, 1],
-                        color=['blue' if i else 'red' for i in is_real[indices]],
-                        marker=markers[i % 7])
-
-    def save_pca_plots(self, iterations, plotter):
-        plt.figure(**self.figure_settings)
-        for i in range(len(iterations)):
-            plt.subplot(1,len(iterations), i+1)
-            # fig = plt.figure()
-            # ax = fig.add_subplot(111, projection='3d')
-            plotter(iterations[i])
-            # plt.figure(**self.figure_settings)
-
-
-        plt.show()
+                    color=['green' if i else 'red' for i in is_real])
 
     def __init__(self, experiment_path, use_test_set=False, IO=IO_NPY()):
         self.IO = IO
         self.figure_settings = {
             'figsize': (30, 6)
         }
-
 
         with open(experiment_path + '/config.json') as json_file:
             config = json.load(json_file)

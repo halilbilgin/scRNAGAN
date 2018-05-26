@@ -94,7 +94,11 @@ class ACGAN():
         if config.wgan:
             decay = tf.maximum(0., 1. - (tf.cast(self._iteration, tf.float32) / self.totalIteration))
 
-            opt = config['optimizer'](learning_rate=config.lr*decay, beta1=0, beta2=0.9)
+            if not isinstance(config['optimizer'], tf.train.AdamOptimizer):
+                opt = config['optimizer'](learning_rate=config.lr*decay)
+            else:
+                opt = config['optimizer'](learning_rate=config.lr*decay, beta1=0, beta2=0.9)
+
         else:
             opt = config['optimizer'](learning_rate=config.learning_schedule(config.lr, self._iteration))
 
@@ -107,7 +111,7 @@ class ACGAN():
             G_grads = opt.compute_gradients(GC_loss, var_list=theta_G,
                             colocate_gradients_with_ops=True if config.wgan else False)
             G_solver = opt.apply_gradients(G_grads)
-        
+
         if(return_grads):
             return D_solver, G_solver, D_grads, G_grads
         else:
@@ -177,6 +181,9 @@ class ACGAN():
 
         input_data = InputData(config['data_path'], IO)
 
+        if 'seed' not in config:
+            config['seed'] = 23
+
         if config['scaling'] not in Scaling.__members__:
             scaling = None
         else:
@@ -232,7 +239,8 @@ class ACGAN():
         for it in range(iterations):
 
             for d_step in range(config.d_steps):
-                X_mb, y_mb = input_data.iterator(config.mb_size, (d_step + 1) * it)
+                curIteration = (d_step + 1) * it
+                X_mb, y_mb = input_data.iterator(config.mb_size, curIteration, seed=config.seed)
                 z_mb = sample_z(config.mb_size, config.z_dim)
 
                 _, DC_loss_curr, aux_acc, gan_acc = sess.run(
@@ -259,7 +267,7 @@ class ACGAN():
             if (DC_loss_curr > 1000):
                 break
 
-            if it % log_sample_freq == 0:
+            if it % log_sample_freq == 0 or it == iterations-1:
                 samples, c = self.generate_samples(log_sample_size)
                 samples = input_data.inverse_preprocessing(samples)
 
@@ -329,3 +337,4 @@ class ACGAN():
             config['normalizer_params'] = {'center': True, 'scale': True}
 
         self.config = objdict(config)
+

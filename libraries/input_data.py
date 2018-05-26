@@ -15,9 +15,9 @@ class InputData():
     
     def get_scaler(self):
         return self.scaler
-    
-    def iterator(self, mb_size, i):
-        np.random.seed(i*100+mb_size)
+
+    def iterator(self, mb_size, i, seed=23):
+        np.random.seed(i*1000 + seed)
         idx = np.random.randint(0, self.train.shape[0], mb_size)
         
         return self.train[idx, :], self.train_labels[idx, :]

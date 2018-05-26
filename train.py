@@ -1,4 +1,3 @@
-from libraries.input_data import InputData, Scaling
 from libraries.acgan import ACGAN
 import json
 import argparse
@@ -6,8 +5,6 @@ import os
 import sys
 import tensorflow as tf
 from libraries.utils import close_session
-
-# python3 train.py -epath /home/halilbilgin/remoteSeqGAN/out/experiment2 -i 3000 -s_freq 10 -p_freq 10 -l_freq 100 -l_size 250
 
 def train(args, return_output=False, sess = False):
 
@@ -19,16 +16,17 @@ def train(args, return_output=False, sess = False):
         print("Model config file should exist.")
         sys.exit(0)
 
+    with open(args.experiment_path + '/config.json') as json_file:
+        config = json.load(json_file)
+
     dir_name = 'run_0'
     i = 1
     while os.path.isdir(args.experiment_path + '/' + dir_name):
         dir_name = 'run_' + str(i)
         i += 1
+        config['seed'] += 1
 
     dir_name = args.experiment_path + '/' + dir_name
-
-    with open(args.experiment_path + '/config.json') as json_file:
-        config = json.load(json_file)
 
     config['experiment_path'] = args.experiment_path
     if sess == False:
@@ -41,14 +39,13 @@ def train(args, return_output=False, sess = False):
 
     iters_per_epoch = int(train_labels.shape[0] / config['mb_size'] + 1)
     train_config['iterations'] = iters_per_epoch * train_config['epochs'] + 1
+    train_config['log_sample_freq'] = iters_per_epoch * train_config['log_sample_freq']
 
     del train_config['experiment_path'], train_config['epochs']
     if 'IO' in train_config:
         del train_config['IO']
 
-
     acgan.train_and_log(dir_name, input_data.IO, input_data, **train_config)
-
 
     if return_output:
         return acgan, dir_name
