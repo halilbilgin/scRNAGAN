@@ -14,7 +14,23 @@ class IO_AUTO():
         else:
             return IO_RDS().load_test_set(folder)
 
-class IO_RDS():
+class IO_Main():
+    def load_class_details(self, folder):
+        import csv
+        marker = []
+        marker_names = []
+        class_names = []
+
+        with open(folder+'/class_details.csv') as csvfile:
+            readCSV = csv.DictReader(csvfile, delimiter=',')
+            for row in readCSV:
+                marker_names.append(row['marker_gene'])
+                marker.append(int(row['marker_id']))
+                class_names.append(row['class'])
+
+        return (marker, marker_names, class_names)
+
+class IO_RDS(IO_Main):
     def load_train_set(self, folder):
         return self.load(folder+'/train.rds'),  \
                self.load(folder+'/train_labels.rds', as_matrix=True)
@@ -50,7 +66,8 @@ class IO_RDS():
     def get_extension(self):
         return 'rds'
 
-class IO_NPY():
+class IO_NPY(IO_Main):
+
     def load_train_set(self, folder):
         return self.load(folder+'/train.npy'), \
                self.load(folder+'/train_labels.npy')
