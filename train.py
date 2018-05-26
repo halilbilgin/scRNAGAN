@@ -21,6 +21,10 @@ def train(args, return_output=False, sess = False):
 
     dir_name = 'run_0'
     i = 1
+
+    if 'seed' not in config:
+        config['seed'] = 23
+
     while os.path.isdir(args.experiment_path + '/' + dir_name):
         dir_name = 'run_' + str(i)
         i += 1

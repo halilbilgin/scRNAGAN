@@ -6,6 +6,8 @@ import sys
 import copy
 import random
 import string
+
+
 # Python program to print all paths from a source to destination.
 
 def create_experiments(experiments_path, prefix, config):
@@ -19,8 +21,8 @@ def create_experiments(experiments_path, prefix, config):
 
         if (pathLen == len(keys) - 1):
             paths.append(dict(curPath))
-	    curPath = dict(curPath)
-            
+            curPath = dict(curPath)
+
             return
 
         pathLen += 1
@@ -34,17 +36,19 @@ def create_experiments(experiments_path, prefix, config):
         os.makedirs(experiments_path)
 
     from create_experiment import create_experiment
-
+    seed = 23
     for cfg in paths:
-        hash  = ''.join(random.choice(string.ascii_uppercase) for _ in range(10))
+        hash = ''.join(random.choice(string.ascii_uppercase) for _ in range(10))
         cfg['experiment_path'] = os.path.join(experiments_path,
                                               prefix + '_' + hash)
+        cfg['seed'] = seed
         if not os.path.isdir(cfg['experiment_path']):
             os.makedirs(cfg['experiment_path'])
 
         create_experiment(cfg)
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-epath", "--experiments_path",
@@ -67,10 +71,9 @@ if __name__=='__main__':
     del config['experiments_prefix']
 
     create_experiments(experiments_path, prefix, config)
-
-    if args.config_file != os.path.join(experiments_path, 'exp.json'):
+    if args.config_file != os.path.join(experiments_path, prefix+'.json'):
         with open(args.config_file) as json_file:
-            f = open(os.path.join(experiments_path, 'exp.json'), 'w')
+            f = open(os.path.join(experiments_path, prefix+'.json'), 'w')
             for line in json_file.readlines():
                 f.write(line)
             f.close()
