@@ -261,13 +261,14 @@ class Analysis(object):
         self.figure_settings = {
             'figsize': (30, 6)
         }
-        self.marker = [4, 1, 0, 2, 5]
-        self.marker_names = ['PRSS1', 'GCG', 'INS', 'SST', 'KRT19']
+
 
         with open(experiment_path + '/config.json') as json_file:
             config = json.load(json_file)
 
         self.config = config
+        self.marker, self.marker_names, \
+                    self.class_names = self.IO.load_class_details(config['data_path'])
 
         self.input_data = InputData(config['data_path'], IO_AUTO(), use_test_set)
         
