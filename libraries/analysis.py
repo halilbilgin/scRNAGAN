@@ -27,7 +27,7 @@ class Analysis(object):
         return data, labels, real_fake
 
     def get_gene(self, gene, cellType, epoch):
-        iteration = (epoch+1)*self.iterations_per_epoch
+        iteration = (epoch+2)*self.iterations_per_epoch
         generated_data, generated_labels = self.load_samples(iteration)
 
         train_data, labels = self.input_data.get_raw_data()
@@ -86,11 +86,11 @@ class Analysis(object):
 
         for i in range(len(scores)):
             for j in range(len(scores[i])):
-                dpoints.append([epochs[i], self.marker_names[j], scores[i][j]])
+                dpoints.append([epochs[i], self.class_names[j], scores[i][j]])
         fig = plt.figure()
         ax = fig.add_subplot(111)
         self.barplot(ax, np.array(dpoints))
-        plt.show()
+        return fig
 
     def barplot(self, ax, dpoints):
         '''
@@ -103,12 +103,13 @@ class Analysis(object):
 
         # Aggregate the conditions and the categories according to their
         # mean values
-        conditions = [(c, np.mean(dpoints[dpoints[:, 0] == c][:, 2].astype(float)))
+        conditions = [(c , np.mean(dpoints[dpoints[:, 0] == c][:, 2].astype(float)))
                       for c in np.unique(dpoints[:, 0])]
         categories = [(c, np.mean(dpoints[dpoints[:, 1] == c][:, 2].astype(float)))
                       for c in np.unique(dpoints[:, 1])]
         # sort the conditions, categories and data so that the bars in
         # the plot will be ordered by category and condition
+
         conditions = [c[0] for c in sorted(conditions, key=o.itemgetter(0))]
         categories = [c[0] for c in categories]
 
@@ -138,7 +139,8 @@ class Analysis(object):
 
         # Add a legend
         handles, labels = ax.get_legend_handles_labels()
-        ax.legend(handles[::-1], labels[::-1], loc='upper left')
+        ax.legend(handles[::-1], labels[::-1], loc='upper left', bbox_to_anchor=(-0.4, 0.6))
+
 
     def euclidean_distance(self, epoch, normalize=True):
         generated_data, generated_labels = self.load_samples(epoch * self.iterations_per_epoch)
@@ -162,7 +164,7 @@ class Analysis(object):
         return np.mean(distances)
 
     def load_samples(self, epoch, labels=True, verboseIteration=False):
-        iters = (epoch+1)*self.iterations_per_epoch
+        iters = (epoch+2)*self.iterations_per_epoch
         t = 0
         path = self.run_path + 'run_0/'
         filename =  str(iters - t).zfill(5)
