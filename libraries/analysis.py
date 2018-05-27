@@ -21,9 +21,10 @@ import matplotlib.cm as cm
 
 class Analysis(object):
 
-    def merge_train_and_generated_data(self, iteration):
+    def merge_train_and_generated_data(self, epoch):
+
         real_data , real_labels = self.input_data.get_raw_data()
-        generated_data, generated_labels = self.load_samples(iteration)
+        generated_data, generated_labels = self.load_samples(epoch)
 
         data = np.concatenate((real_data, generated_data), axis=0)
         labels = np.argmax(np.concatenate((real_labels.astype(int), generated_labels.astype(int))), 1)
@@ -35,7 +36,8 @@ class Analysis(object):
         #data[train_data.shape[0]:, :] = scaler.transform(generated_data)
         return data, labels, real_fake
 
-    def get_gene(self, gene, cellType, iteration):
+    def get_gene(self, gene, cellType, epoch):
+        iteration = (epoch+1)*self.iterations_per_epoch
         generated_data, generated_labels = self.load_samples(iteration)
 
         train_data, labels = self.input_data.get_raw_data()
@@ -63,8 +65,9 @@ class Analysis(object):
                 ratio_vector[cell_type] = 0
         return ratio_vector
 
-    def get_generated_ratio(self, max_iteration):
-        generated_data, generated_labels = self.load_samples(max_iteration)
+    def get_generated_ratio(self, epoch):
+
+        generated_data, generated_labels = self.load_samples(epoch)
         generated_ratio = self.get_marker_vector(generated_data, generated_labels)
 
         return generated_ratio
@@ -84,16 +87,16 @@ class Analysis(object):
 
         return np.round(true_ratio, 3)-np.round(generated_ratio, 3)
 
-    def plot_ratios(self, iterations):
+    def plot_ratios(self, epochs):
         dpoints = []
 
-        scores = [self.get_generated_ratio(i) for i in iterations]
-        iterations.append('ORIGINAL')
+        scores = [self.get_generated_ratio(i) for i in epochs]
+        epochs.append('ORIGINAL')
         scores.append(self.get_true_ratio())
 
         for i in range(len(scores)):
             for j in range(len(scores[i])):
-                dpoints.append([iterations[i], self.marker_names[j], scores[i][j]])
+                dpoints.append([epochs[i], self.marker_names[j], scores[i][j]])
         fig = plt.figure()
         ax = fig.add_subplot(111)
         self.barplot(ax, np.array(dpoints))
@@ -168,7 +171,8 @@ class Analysis(object):
         distances = np.linalg.norm(train_data[ind, :] - generated_data, axis=1)
         return np.mean(distances)
 
-    def load_samples(self, iters, labels=True, verboseIteration=False):
+    def load_samples(self, epoch, labels=True, verboseIteration=False):
+        iters = (epoch+1)*self.iterations_per_epoch
         t = 0
         path = self.run_path + 'run_0/'
         filename =  str(iters - t).zfill(5)
@@ -207,8 +211,8 @@ class Analysis(object):
         else:
             return data
 
-    def plot_pca(self, iteration):
-        data, labels, is_real = self.merge_train_and_generated_data(iteration)
+    def plot_pca(self, epoch):
+        data, labels, is_real = self.merge_train_and_generated_data(epoch)
 
         pca = decomposition.PCA(n_components=2)
         pca.fit(data[is_real, :])
