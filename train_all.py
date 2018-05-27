@@ -1,6 +1,3 @@
-from libraries.input_data import InputData, Scaling
-from libraries.acgan import ACGAN
-import json
 import argparse
 import os
 import copy

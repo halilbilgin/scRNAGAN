@@ -35,7 +35,6 @@ def create_experiments(experiments_path, prefix, config):
     if not os.path.isdir(experiments_path):
         os.makedirs(experiments_path)
 
-    from create_experiment import create_experiment
     seed = 23
     for cfg in paths:
         hash = ''.join(random.choice(string.ascii_uppercase) for _ in range(10))

@@ -1,6 +1,5 @@
 import tensorflow as tf
 import numpy as np
-import datetime
 import os
 from tensorflow.contrib.layers import fully_connected
 from libraries.utils import sample_z, cross_entropy, objdict, get_activation, get_optimizer, get_learning_schedule
