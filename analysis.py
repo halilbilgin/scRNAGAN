@@ -1,9 +1,11 @@
-from libraries.analysis import Analysis
 from glob import glob
 import numpy as np
 import argparse
 import os
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from libraries.analysis import Analysis
 import csv
 from libraries.IO import get_IO
 
