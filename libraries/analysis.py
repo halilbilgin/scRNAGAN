@@ -41,18 +41,20 @@ class Analysis(object):
                train_data[query_train, gene]
 
     def get_marker_vector(self, data, labels):
+        unique_markers = list(set(self.marker))
 
-        ratio_vector = np.zeros(len(self.marker))
+        ratio_vector = np.zeros(len(unique_markers))
 
-        for cell_type in range(len(self.marker)):
-            marker = self.marker[cell_type]
-            sum = labels[:, cell_type]
+        for marker in unique_markers:
+            cell_type = [i for i in range(len(self.marker)) if self.marker[i]==marker]
+            sum = np.sum(labels[:, cell_type], axis=1)
 
-            ratio_vector[cell_type] = np.mean(data[np.where(sum == 0), marker]) / \
+            ratio_vector[marker] = np.mean(data[np.where(sum == 0), marker]) / \
                               (np.mean(data[np.where(sum == 1), marker]))
 
-            if np.isnan(ratio_vector[cell_type]):
-                ratio_vector[cell_type] = 0
+            if np.isnan(ratio_vector[marker]):
+                ratio_vector[marker] = 0
+
         return ratio_vector
 
     def get_generated_ratio(self, epoch):
@@ -228,7 +230,7 @@ class Analysis(object):
                     self.class_names = self.IO.load_class_details(config['data_path'])
 
         self.input_data = InputData(config['data_path'], IO_AUTO(), use_test_set)
-        
+
         self.input_data.preprocessing(config['log_transformation'], None if config['scaling'] not in Scaling.__members__ else Scaling[config['scaling']])
 
         train_data, _ = self.input_data.get_raw_data()
