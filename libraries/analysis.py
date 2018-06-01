@@ -227,6 +227,25 @@ class Analysis(object):
             fig.savefig(filename, bbox_inches='tight')
             fig.clf()
 
+    def differential_gene_expression(self, epoch):
+
+        generated_raw, generated_labels = self.load_samples(epoch)
+        true_raw, true_labels = self.input_data.get_raw_data()
+
+        import rpy2.robjects as ro
+        from rpy2.robjects.packages import importr
+        from rpy2.robjects import numpy2ri
+        numpy2ri.activate()
+        utils = importr('utils')
+        utils.install_packages('ROTS', repos='http://cran.us.r-project.org')
+
+        diff_expression = ro.r['source']("libraries/differential_gene_expression.R")[0]
+
+        result = diff_expression(true_raw, true_labels, generated_raw, generated_labels)
+        numpy2ri.deactivate()
+
+        return np.asarray(result)
+
     def __init__(self, experiment_path, use_test_set=False, experiment_IO=IO_NPY(), dataset_IO=IO_AUTO()):
         self.experiment_IO = experiment_IO
         self.dataset_IO = dataset_IO
