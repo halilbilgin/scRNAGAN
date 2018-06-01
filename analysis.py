@@ -46,40 +46,36 @@ for folder in folders:
 
     print("current exp below", folder)
 
-    #try:
     analysis = Analysis(folder, False, IO)
 
-    epochs = [10, 15, 20, 25, 30]
+    epochs = [0, 10, 15, 20, 25, 30]
     index_scores = np.asarray([analysis.get_index_scores(analysis.get_generated_ratio(i)) for i in epochs])
     minIterIndex = np.argmin(np.mean(np.abs(index_scores), axis=1))
+
     print(('Mean of indices by iteration', np.mean(np.abs(index_scores), axis=1)))
-    print((index_scores[minIterIndex], epochs[minIterIndex]))
 
-    fig = plt.figure()
-    analysis.plot_pca(epochs[minIterIndex])
-    fig.savefig(analysis_folder+'pca_plots/'+get_basename(folder)+'.jpg', bbox_inches='tight')
-    fig.clf()
+    analysis.plot_pca(epochs[minIterIndex], analysis_folder+'pca_plots/'+get_basename(folder)+'.jpg')
 
-    fig = analysis.plot_ratios(epochs)
-    fig.savefig(analysis_folder+'marker_plots/'+get_basename(folder)+'.jpg', bbox_inches='tight')
-    fig.clf()
+    analysis.plot_ratios(epochs[0:minIterIndex+1], analysis_folder+'marker_plots/'+get_basename(folder)+'.jpg')
 
-    row = {'exp_id': get_basename(folder)}
+    row = {'exp_id': get_basename(folder), 'best_epoch': epochs[minIterIndex]}
     row = merge_two_dicts(row, analysis.get_hyperparams())
 
     row['data_path'] = get_basename(row['data_path'])
-    del row['experiment_path'], row['generator_output_activation']
+
+    for key in ['experiment_path', 'generator_output_activation', 'learning_schedule', 'seed', 'log_transformation']:
+        row.pop(key, None)
 
     index_scores[minIterIndex] = np.abs(index_scores[minIterIndex])
-    for marker in analysis.marker_names:
-        row['ind_'+marker] = index_scores[minIterIndex][analysis.marker_names.index(marker)]
 
-    row['ind_mean'] = np.mean(index_scores[minIterIndex])
+    row['ind_mean'] = np.mean(np.abs(index_scores[minIterIndex]))
 
     results.append(row)
 
     #except Exception as err:
     #    print(err)
+
+results= sorted(results, key=lambda k: k['ind_mean'])
 
 keys = results[0].keys()
 

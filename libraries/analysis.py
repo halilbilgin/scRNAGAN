@@ -79,7 +79,7 @@ class Analysis(object):
 
         return np.round(true_ratio, 3)-np.round(generated_ratio, 3)
 
-    def plot_ratios(self, epochs):
+    def plot_ratios(self, epochs, filename=False):
         dpoints = []
 
         scores = [self.get_generated_ratio(i) for i in epochs]
@@ -89,9 +89,15 @@ class Analysis(object):
         for i in range(len(scores)):
             for j in range(len(scores[i])):
                 dpoints.append([epochs[i], self.class_names[j], scores[i][j]])
+
         fig = plt.figure()
         ax = fig.add_subplot(111)
         self.barplot(ax, np.array(dpoints))
+        if filename == False:
+            plt.show()
+        else:
+            fig.savefig(filename, bbox_inches='tight')
+            fig.clf()
         return fig
 
     def barplot(self, ax, dpoints):
@@ -143,7 +149,6 @@ class Analysis(object):
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[::-1], labels[::-1], loc='upper left', bbox_to_anchor=(-0.4, 0.6))
 
-
     def euclidean_distance(self, epoch, normalize=True):
         generated_data, generated_labels = self.load_samples(epoch * self.iterations_per_epoch)
 
@@ -170,7 +175,7 @@ class Analysis(object):
         t = 0
         path = self.run_path + 'run_0/'
         filename =  str(iters - t).zfill(5)
-        extension = '.' + self.IO.get_extension()
+        extension = '.' + self.experiment_IO.get_extension()
         while not os.path.isfile(os.path.join(path, filename + extension)):
 
             t += 1
@@ -186,15 +191,15 @@ class Analysis(object):
             files.append(os.path.join(self.run_path, 'run_'+str(i), filename))
             i+=1
 
-        data = self.IO.load(files[0] + extension)
+        data = self.experiment_IO.load(files[0] + extension)
         for i in range(1, len(files)):
-            data = np.concatenate((data, self.IO.load(files[i] + extension)), axis=0)
+            data = np.concatenate((data, self.experiment_IO.load(files[i] + extension)), axis=0)
 
         if labels:
-            data_labels = self.IO.load(files[0] + '_labels' + extension)
+            data_labels = self.experiment_IO.load(files[0] + '_labels' + extension)
             for i in range(1, len(files)):
                 data_labels = np.concatenate((data_labels,
-                                             self.IO.load(files[i] + '_labels' + extension)),
+                                             self.experiment_IO.load(files[i] + '_labels' + extension)),
                                              axis=0)
 
         #data = self.input_data.inverse_preprocessing(data, self.config['log_transformation'],
@@ -205,7 +210,7 @@ class Analysis(object):
         else:
             return data
 
-    def plot_pca(self, epoch):
+    def plot_pca(self, epoch, filename=False):
         data, labels, is_real = self.merge_train_and_generated_data(epoch)
 
         pca = decomposition.PCA(n_components=2)
@@ -213,11 +218,18 @@ class Analysis(object):
 
         X = pca.transform(data)
 
+        fig = plt.figure()
         plt.scatter(X[:, 0], X[:, 1],
                     color=['green' if i else 'red' for i in is_real])
+        if filename == False:
+            plt.show()
+        else:
+            fig.savefig(filename, bbox_inches='tight')
+            fig.clf()
 
-    def __init__(self, experiment_path, use_test_set=False, IO=IO_NPY()):
-        self.IO = IO
+    def __init__(self, experiment_path, use_test_set=False, experiment_IO=IO_NPY(), dataset_IO=IO_AUTO()):
+        self.experiment_IO = experiment_IO
+        self.dataset_IO = dataset_IO
         self.figure_settings = {
             'figsize': (30, 6)
         }
@@ -227,9 +239,9 @@ class Analysis(object):
 
         self.config = config
         self.marker, self.marker_names, \
-                    self.class_names = self.IO.load_class_details(config['data_path'])
+                    self.class_names = dataset_IO.load_class_details(config['data_path'])
 
-        self.input_data = InputData(config['data_path'], IO_AUTO(), use_test_set)
+        self.input_data = InputData(config['data_path'], dataset_IO, use_test_set)
 
         self.input_data.preprocessing(config['log_transformation'], None if config['scaling'] not in Scaling.__members__ else Scaling[config['scaling']])
 
