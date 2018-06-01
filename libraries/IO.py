@@ -1,19 +1,6 @@
 import numpy as np
 import os
 
-class IO_AUTO():
-    def load_train_set(self, folder):
-        if os.path.isfile(folder + '/train.npy'):
-            return IO_NPY().load_train_set(folder)
-        else:
-            return IO_RDS().load_train_set(folder)
-
-    def load_test_set(self, folder):
-        if os.path.isfile(folder + '/test.npy'):
-            return IO_NPY().load_test_set(folder)
-        else:
-            return IO_RDS().load_test_set(folder)
-
 class IO_Main():
     def load_class_details(self, folder):
         import csv
@@ -29,6 +16,19 @@ class IO_Main():
                 class_names.append(row['class'])
 
         return (marker, marker_names, class_names)
+
+class IO_AUTO(IO_Main):
+    def load_train_set(self, folder):
+        if os.path.isfile(folder + '/train.npy'):
+            return IO_NPY().load_train_set(folder)
+        else:
+            return IO_RDS().load_train_set(folder)
+
+    def load_test_set(self, folder):
+        if os.path.isfile(folder + '/test.npy'):
+            return IO_NPY().load_test_set(folder)
+        else:
+            return IO_RDS().load_test_set(folder)
 
 class IO_RDS(IO_Main):
     def load_train_set(self, folder):
@@ -55,14 +55,13 @@ class IO_RDS(IO_Main):
 
     def __init__(self):
         import rpy2.robjects as ro
-        import rpy2.robjects as robjects
         from rpy2.robjects import pandas2ri
 
         pandas2ri.activate()
 
         self.ro = ro
         self.pandas2ri = pandas2ri
-        self.readRDS = robjects.r['readRDS']
+        self.readRDS = ro.r['readRDS']
     def get_extension(self):
         return 'rds'
 
