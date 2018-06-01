@@ -172,29 +172,44 @@ class ACGAN():
 
     @staticmethod
     def load(sess, config):
+        default_config = {
+            'd_steps' : 1,
+            'd_hidden_layers': [180, 45],
+            'g_hidden_layers': [50, 200],
+            'normalizer_fn': None,
+            'weights_regularizer': None,
+            'activation_function': tf.nn.relu,
+            'g_dropout': 0.3,
+            'd_dropout': 0.5,
+            'seed': 23,
+            'label_noise': 0.3,
+            'leaky_param': 0.1,
+            'mb_size': 10,
+            'eps': 1e-8,
+            'lr':4e-4,
+            'normalizer_params':{},
+            'wgan': False,
+            'IO': 'npy',
+            'optimizer': 'Adam',
+            'learning_schedule': 'no_schedule',
+            'log_transformation': 0
+        }
 
-        if 'IO' not in config:
-            config['IO'] = 'npy'
+
+        default_config.update(config)
+
+        config = default_config
 
         IO = get_IO(config['IO'])
 
         input_data = InputData(config['data_path'], IO)
-
-        if 'seed' not in config:
-            config['seed'] = 23
 
         if config['scaling'] not in Scaling.__members__:
             scaling = None
         else:
             scaling = Scaling[config['scaling']]
 
-        if 'optimizer' not in config:
-            config['optimizer'] = 'Adam'
-
         config['optimizer'] = get_optimizer(config['optimizer'])
-
-        if 'learning_schedule' not in config:
-            config['learning_schedule'] = 'no_schedule'
 
         config['learning_schedule'] = get_learning_schedule(config['learning_schedule'])
 
@@ -210,7 +225,7 @@ class ACGAN():
         return acgan, input_data
 
     @staticmethod
-    def load_saved_acgan(sess, path):
+    def load_saved_model(sess, path):
         with open(path + '/config.json') as json_file:
             config = json.load(json_file)
 
@@ -296,42 +311,15 @@ class ACGAN():
 
     def __init__(self, sess, X_dim, y_dim, **kwargs):
         self.sess = sess
-        default_config = {
-            'd_steps' : 1,
-            'd_hidden_layers': [180, 45],
-            'g_hidden_layers': [50, 200],
-            'normalizer_fn': None,
-            'weights_regularizer': None,
-            'activation_function': tf.nn.relu,
-            'g_dropout': 0.3,
-            'd_dropout': 0.5,
-            'label_noise': 0.3,
-            'mb_size': 10,
-            'eps': 1e-8,
-            'lr':4e-4,
-            'normalizer_params':{},
-            'X_dim': X_dim,
-            'y_dim': y_dim,
-            'z_dim': kwargs['z_dim']
-        }
 
-        config = default_config.copy()
-        config.update(kwargs)
-    
-        #config = {**default_config, **kwargs}
-
-        if 'leaky_param' not in config:
-            config['leaky_param'] = 0.1
+        config = kwargs
+        config['X_dim'] = X_dim
+        config['y_dim'] = y_dim
 
         config['activation_function'] = get_activation(config['activation_function'], config['leaky_param'])
         config['generator_output_activation'] = get_activation('tanh' if config['scaling'] == 'minmax' else 'none')
 
-        if 'wgan' not in config:
-            config['wgan'] = False
-
-        if 'normalizer_fn' not in config:
-            config['normalizer_fn'] = None
-        else:
+        if config['normalizer_fn']:
             config['normalizer_fn'] = tf.contrib.layers.batch_norm
             config['normalizer_params'] = {'center': True, 'scale': True}
 
