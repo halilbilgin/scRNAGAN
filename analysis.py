@@ -44,36 +44,36 @@ for folder in folders:
     if get_basename(folder) == 'analysis':
         continue
 
-    print("current exp below", folder)
+    print("current exp:", folder)
+    try:
+        analysis = Analysis(folder, False, IO)
 
-    analysis = Analysis(folder, False, IO)
+        epochs = [0, 10, 15, 20, 25, 30]
+        index_scores = np.asarray([analysis.get_index_scores(analysis.get_generated_ratio(i)) for i in epochs])
+        minIterIndex = np.argmin(np.mean(np.abs(index_scores), axis=1))
 
-    epochs = [0, 10, 15, 20, 25, 30]
-    index_scores = np.asarray([analysis.get_index_scores(analysis.get_generated_ratio(i)) for i in epochs])
-    minIterIndex = np.argmin(np.mean(np.abs(index_scores), axis=1))
+        print(('Min index', np.mean(np.abs(index_scores[minIterIndex]))))
 
-    print(('Mean of indices by iteration', np.mean(np.abs(index_scores), axis=1)))
+        analysis.plot_pca(epochs[minIterIndex], analysis_folder+'pca_plots/'+get_basename(folder)+'.jpg')
 
-    analysis.plot_pca(epochs[minIterIndex], analysis_folder+'pca_plots/'+get_basename(folder)+'.jpg')
+        analysis.plot_ratios(epochs[0:minIterIndex+1], analysis_folder+'marker_plots/'+get_basename(folder)+'.jpg')
 
-    analysis.plot_ratios(epochs[0:minIterIndex+1], analysis_folder+'marker_plots/'+get_basename(folder)+'.jpg')
+        row = {'exp_id': get_basename(folder), 'best_epoch': epochs[minIterIndex]}
+        row = merge_two_dicts(row, analysis.get_hyperparams())
 
-    row = {'exp_id': get_basename(folder), 'best_epoch': epochs[minIterIndex]}
-    row = merge_two_dicts(row, analysis.get_hyperparams())
+        row['data_path'] = get_basename(row['data_path'])
 
-    row['data_path'] = get_basename(row['data_path'])
+        for key in ['experiment_path', 'generator_output_activation', 'learning_schedule', 'seed', 'log_transformation']:
+            row.pop(key, None)
 
-    for key in ['experiment_path', 'generator_output_activation', 'learning_schedule', 'seed', 'log_transformation']:
-        row.pop(key, None)
+        index_scores[minIterIndex] = np.abs(index_scores[minIterIndex])
 
-    index_scores[minIterIndex] = np.abs(index_scores[minIterIndex])
+        row['ind_mean'] = np.mean(np.abs(index_scores[minIterIndex]))
 
-    row['ind_mean'] = np.mean(np.abs(index_scores[minIterIndex]))
+        results.append(row)
 
-    results.append(row)
-
-    #except Exception as err:
-    #    print(err)
+    except Exception as err:
+        print(err)
 
 results= sorted(results, key=lambda k: k['ind_mean'])
 
@@ -83,3 +83,4 @@ with open(analysis_folder+'results.csv', 'w') as output_file:
     dict_writer = csv.DictWriter(output_file, keys)
     dict_writer.writeheader()
     dict_writer.writerows(results)
+
