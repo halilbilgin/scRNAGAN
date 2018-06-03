@@ -46,6 +46,9 @@ def create_experiments(experiments_path, prefix, config):
 
         create_experiment(cfg)
 
+    f = open(os.path.join(experiments_path, prefix+'.json'), 'w')
+    f.write(json.dumps(config))
+    f.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -70,9 +73,3 @@ if __name__ == '__main__':
     del config['experiments_prefix']
 
     create_experiments(experiments_path, prefix, config)
-    if args.config_file != os.path.join(experiments_path, prefix+'.json'):
-        with open(args.config_file) as json_file:
-            f = open(os.path.join(experiments_path, prefix+'.json'), 'w')
-            for line in json_file.readlines():
-                f.write(line)
-            f.close()
