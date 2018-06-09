@@ -1,0 +1,24 @@
+{
+    "learning_schedule": ["no_schedule"],
+    "optimizer": ["Adam", "RMSProp"],
+    "d_dropout": [0],
+    "activation_function": ["relu"],
+    "mb_size": [20, 40],
+    "learning_rate": [1e-05],
+    "data_path": ["/vol1/ibrahim/data/joint_1/"],
+    "z_dim": [100],
+    "g_dropout": [0],
+    "scaling": ["none"],
+    "log_transformation": [0],
+    "label_noise": [0],
+    "d_hidden_layers": [
+        [600, 170],
+        [350, 1200]
+    ],
+    "g_hidden_layers": [
+        [144, 576],
+        [280, 1100]
+    ],
+    "wgan": [0],
+    "leaky_param": [0.1]
+}

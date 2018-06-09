@@ -1,0 +1,22 @@
+{
+    "learning_schedule": ["search_then_converge"],
+    "optimizer": ["Adam", "RMSProp"],
+    "d_dropout": [0],
+    "activation_function": ["tanh", "leaky_relu", "relu"],
+    "mb_size": [20, 40, 60, 80, 100],
+    "learning_rate": [0.00001, 0.0001, 0.001, 0.01],
+    "data_path": ["/vol1/ibrahim/data/alphabeta_joint_500/"],
+    "z_dim": [100],
+    "g_dropout": [0],
+    "scaling": ["none"],
+    "log_transformation": [0],
+    "label_noise": [0],
+    "d_hidden_layers": [
+        [600, 170]
+    ],
+    "g_hidden_layers": [
+        [144, 576]
+    ],
+    "wgan": [0],
+    "leaky_param": [0.1]
+}
