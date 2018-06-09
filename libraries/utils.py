@@ -77,6 +77,8 @@ def get_learning_schedule(name):
     if name == 'no_schedule':
         return lambda eta0, n : eta0
     elif name == 'search_then_converge':
-        return lambda eta0, n: eta0 / (1 + n / 1000)
+        return lambda eta0, n: tf.divide(eta0, (tf.add(tf.convert_to_tensor(1.0, tf.float64), tf.divide(n, tf.convert_to_tensor(1000, np.int32)))))
+
+	#return lambda eta0, n: eta0 / (1 + n / 1000)
     else:
         raise NotImplementedError()
