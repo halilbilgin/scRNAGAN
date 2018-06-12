@@ -1,8 +1,14 @@
 # scRNAGAN
 
+This repository implements [AC-GAN](https://arxiv.org/abs/1610.09585) both with classical GAN and [WGAN-GP](http://papers.nips.cc/paper/7159-improved-training-of-wasserstein-gans) loss functions. I created this repository to create [GAN](https://arxiv.org/abs/1406.2661) models and evaluate their performance for single cell RNA-seq datasets. AC-GAN is implemented to make use of cell type both in training and generating novel samples. AC-GAN modification allows generator to generate cells from specific cell types.
+
+For evaluation I used PCA plots, t-SNE plots and a measure to compare marker gene expression of generated samples with real samples.  
+
+The repository also provides a systematic way for grid search over the hyperparameter space. Models and generated samples are logged regularly over epochs for evaluation during hyperparameter tuning.
+
 ### Creating and running an experiment using script.py:
 
-Specifify the hyperparameters and the location of dataset in script.py
+Specify the hyperparameters and the location of dataset in script.py
 
 Example:
 
